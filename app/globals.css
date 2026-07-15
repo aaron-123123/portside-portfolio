@@ -1,0 +1,878 @@
+/*
+  Pit Wall — internal delivery tool
+  Editorial / document-like: sharp corners, lots of cream, coral only at decisions.
+*/
+
+:root {
+  --cream: #f4f0ec;
+  --ink: #22190c;
+  --coral: #ff4832;
+  --rust: #834a33;
+  /* Warm grey darkened to ~4.5:1 on cream (WCAG AA); this text carries dates,
+     labels, and meta, so it must be legible. */
+  --muted: #6b655c;
+  --white: #ffffff;
+
+  --line: rgba(34, 25, 12, 0.14);
+  --line-strong: rgba(34, 25, 12, 0.32);
+
+  --font-mono: var(--font-space-mono), ui-monospace, monospace;
+  --font-body: var(--font-source-sans), system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---------- Layout shell ---------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--cream);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+}
+
+.brand-mark {
+  width: 11px;
+  height: 11px;
+  background: var(--coral);
+  display: inline-block;
+  align-self: center;
+}
+
+/* Serif wordmark for the "Pit Wall" brand. */
+.brand-name {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 21px;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.brand-sub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.container {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 56px 32px 96px;
+}
+
+/* ---------- Role toggle ---------- */
+
+.toggle {
+  display: flex;
+  border: 1px solid var(--line-strong);
+}
+
+.toggle-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  align-self: center;
+  margin-right: 14px;
+}
+
+.toggle-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  cursor: pointer;
+}
+
+.toggle form + form .toggle-btn {
+  border-left: 1px solid var(--line-strong);
+}
+
+.toggle-btn.active {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.toggle-btn:disabled {
+  cursor: default;
+}
+
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+}
+
+/* ---------- Typography ---------- */
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.page-title {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+.lede {
+  color: var(--muted);
+  max-width: 60ch;
+  margin: 0 0 40px;
+}
+
+.back-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: inline-block;
+  margin-bottom: 28px;
+}
+
+.back-link:hover {
+  color: var(--ink);
+}
+
+/* ---------- Client roster (homepage monospace list) ---------- */
+
+.roster {
+  border-top: 1px solid var(--line-strong);
+}
+
+.roster-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 22px 4px;
+  border-bottom: 1px solid var(--line);
+  transition: padding-left 0.12s ease;
+  gap: 16px;
+}
+
+.roster-row:hover {
+  padding-left: 12px;
+}
+
+.roster-name {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.roster-row:hover .roster-name {
+  color: var(--coral);
+}
+
+.roster-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- Space sections ---------- */
+
+.section {
+  margin-bottom: 56px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.section-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ---------- Document rows ---------- */
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 4px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.doc-main {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.doc-name {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 400;
+  word-break: break-word;
+}
+
+.doc-name:hover {
+  color: var(--coral);
+}
+
+.doc-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Chips ---------- */
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.chip--private {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.chip--shared {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.chip--pending {
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+.chip--approved {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--cream);
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-block;
+}
+
+.btn:hover {
+  border-color: var(--ink);
+}
+
+.btn--primary {
+  background: var(--coral);
+  border-color: var(--coral);
+  /* Ink on coral clears WCAG AA at this size; white on coral does not. */
+  color: var(--ink);
+}
+
+.btn--primary:hover {
+  background: #e83c28;
+  border-color: #e83c28;
+}
+
+.btn--link {
+  border: none;
+  padding: 8px 4px;
+  color: var(--muted);
+}
+
+.btn--link:hover {
+  color: var(--ink);
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Forms ---------- */
+
+.panel {
+  border: 1px solid var(--line-strong);
+  padding: 24px;
+  margin-top: 8px;
+  background: var(--white);
+}
+
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input[type="file"],
+input[type="text"],
+select {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: 2px;
+}
+
+input[type="text"] {
+  min-width: 180px;
+}
+
+/* ---------- Activity log ---------- */
+
+.activity-row {
+  display: flex;
+  gap: 16px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.activity-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex: 0 0 150px;
+}
+
+.activity-text {
+  font-size: 14px;
+  flex: 1 1 300px;
+}
+
+.activity-actor {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  margin-right: 8px;
+}
+
+/* ---------- Misc ---------- */
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+  padding: 20px 4px;
+}
+
+.notice {
+  font-size: 13px;
+  color: var(--muted);
+  border-left: 2px solid var(--rust);
+  padding: 4px 0 4px 14px;
+  margin: 16px 0 0;
+}
+
+.inline-form {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.config-error {
+  max-width: 620px;
+  margin: 80px auto;
+  padding: 0 32px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.config-error code {
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+}
+
+/* ---------- Status chips (health / milestone / action owner) ---------- */
+
+.chip--ontrack {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.chip--risk {
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+/* Coral only appears for a genuine problem. Ink text for AA contrast. */
+.chip--blocked {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: var(--ink);
+}
+
+.chip--planned {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.chip--progress {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.chip--done {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.chip--client {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.chip--team {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+/* ---------- One-glance status card ---------- */
+
+.status-card {
+  border: 1px solid var(--line-strong);
+  padding: 24px;
+  background: var(--white);
+  margin: 8px 0 44px;
+}
+
+.status-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.status-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.progress {
+  height: 6px;
+  background: var(--line);
+  margin-bottom: 22px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--ink);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 22px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.stat-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- Timeline ---------- */
+
+.timeline {
+  margin-left: 6px;
+  margin-top: 4px;
+}
+
+.tl-item {
+  position: relative;
+  padding: 0 0 26px 26px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.tl-item:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.tl-marker {
+  position: absolute;
+  left: -6px;
+  top: 3px;
+  width: 11px;
+  height: 11px;
+  background: var(--cream);
+  border: 2px solid var(--muted);
+}
+
+.tl-item[data-status="in_progress"] .tl-marker {
+  border-color: var(--ink);
+}
+
+.tl-item[data-status="done"] .tl-marker {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.tl-item[data-status="blocked"] .tl-marker {
+  background: var(--coral);
+  border-color: var(--coral);
+}
+
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tl-title {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.tl-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.tl-detail {
+  font-size: 14px;
+  margin: 8px 0 0;
+  max-width: 60ch;
+}
+
+.tl-controls {
+  margin-top: 12px;
+}
+
+/* ---------- Action items ---------- */
+
+.action-done-list {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.action-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------- Roster status ---------- */
+
+.roster-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Pulse / CSAT ---------- */
+
+.pulse-prompt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0 0 14px;
+}
+
+.pulse-scale {
+  display: flex;
+  gap: 8px;
+}
+
+.pulse-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pulse-opt span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pulse-opt span:hover {
+  border-color: var(--ink);
+}
+
+.pulse-opt input:checked + span {
+  background: var(--ink);
+  color: var(--cream);
+  border-color: var(--ink);
+}
+
+.pulse-opt input:focus-visible + span {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+
+.pulse-summary {
+  display: flex;
+  gap: 36px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.chip--score {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.pulse-outof {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.pulse-scale-caption {
+  display: flex;
+  justify-content: space-between;
+  width: 226px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pulse-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pulse-fieldset legend {
+  padding: 0;
+}
+
+/* ---------- Keyboard focus (was only on the pulse scale) ---------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.roster-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---------- Generic item title (not a document) ---------- */
+
+.item-name {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  word-break: break-word;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 640px) {
+  .container {
+    padding: 40px 20px 72px;
+  }
+  .header {
+    padding: 16px 20px;
+  }
+  .status-grid {
+    gap: 18px;
+  }
+}
+
+/* ---------- Editorial refit ---------- */
+
+/* Bracketed monospace links — the signature CTA form: [ LABEL ] */
+.back-link::before {
+  content: "[ ";
+}
+.back-link::after {
+  content: " ]";
+}
+
+/* Roster rows reveal a coral arrow on hover — the signature micro-interaction. */
+.roster-name {
+  transition: color 0.12s ease;
+}
+.roster-row:hover .roster-name::after {
+  content: " \2192";
+  color: var(--coral);
+}
+
+/* The single decision point (client Approve) carries the arrow. */
+.btn--primary::after {
+  content: " \2192";
+}
+
+/* Soften surfaces to a 2px radius; the role toggle becomes a pill like
+   a floating nav. */
+.btn,
+.chip,
+.panel,
+.status-card,
+.config-error code {
+  border-radius: 2px;
+}
+
+.toggle {
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  padding: 8px 18px;
+}
