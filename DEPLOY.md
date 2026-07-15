@@ -60,10 +60,11 @@ npm run dev        # start the app
 ```
 
 Then open **<http://localhost:3000>** in your browser. You should see the client
-roster (Meridian Super, Coastline Health Network, Nardoo Water Authority).
+roster (Contoso Super, Fabrikam Health Network, Northwind Water Authority) — these
+are placeholder names, not real companies.
 
 **Try it:**
-- Click **Meridian Super** in **EM View** — you'll see the Private Space, the
+- Click **Contoso Super** in **EM View** — you'll see the Private Space, the
   Shared Space, and the Activity Log.
 - Switch to **Client View** (top right). The Private Space and Activity Log
   disappear, and you can approve the pending document.

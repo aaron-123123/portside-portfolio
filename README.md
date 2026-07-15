@@ -15,8 +15,9 @@ of everything that happens.
 
 > This is a portfolio prototype. It models the "Spaces" pattern from professional
 > services-automation tools, rebuilt to look and behave like an in-house delivery
-> tool rather than a generic SaaS product. The company, clients, and engagement
-> content throughout are fictional.
+> tool rather than a generic SaaS product. The consultancy, its clients (Contoso,
+> Fabrikam, Northwind — standard placeholder names, not real companies), and all
+> engagement content are fictional.
 
 ## What the portal does
 
