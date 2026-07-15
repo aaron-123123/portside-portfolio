@@ -1,6 +1,6 @@
 # Pit Wall
 
-**Live demo:** _(link added after deploy)_  ·  switch between **EM**,
+**Live demo:** https://pit-wall-portfolio.vercel.app  ·  switch between **EM**,
 **Sponsor**, and **Lead** (top right) to see the access boundary in action.
 
 A client-delivery workspace for a professional-services consultancy. Each client
