@@ -1,5 +1,5 @@
 // ============================================================================
-// Pit Wall — seed script.
+// Portside — seed script.
 // Creates a sample set of client engagements with private/shared documents,
 // real uploaded placeholder PDFs, and one pending approval.
 //
@@ -192,7 +192,7 @@ async function seed() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  console.log("Pit Wall seed starting...");
+  console.log("Portside seed starting...");
   await ensureBucket();
 
   for (const eng of engagements) {

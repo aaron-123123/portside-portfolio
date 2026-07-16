@@ -13,7 +13,7 @@ types.setTypeParser(1184, (value) =>
 );
 
 /**
- * Direct Postgres access — the database half of Pit Wall's two-layer enforcement.
+ * Direct Postgres access — the database half of Portside's two-layer enforcement.
  *
  * The app connects through Supabase's transaction pooler as a privileged user,
  * but every role-scoped query first drops to the non-privileged `authenticated`

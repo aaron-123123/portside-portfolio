@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { Role } from "./types";
 
-const ROLE_COOKIE = "pitwall_role";
+const ROLE_COOKIE = "portside_role";
 
 /**
  * Read the current viewer role from the httpOnly session cookie.

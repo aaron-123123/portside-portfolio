@@ -1,5 +1,5 @@
 /*
-  Pit Wall — internal delivery tool
+  Portside — internal delivery tool
   Editorial / document-like: sharp corners, lots of cream, coral only at decisions.
 */
 
@@ -71,7 +71,7 @@ a {
   align-self: center;
 }
 
-/* Serif wordmark for the "Pit Wall" brand. */
+/* Serif wordmark for the "Portside" brand. */
 .brand-name {
   font-family: var(--font-serif), Georgia, serif;
   font-size: 21px;

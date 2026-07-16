@@ -19,7 +19,7 @@ const sourceSans = Source_Sans_3({
   variable: "--font-source-sans",
 });
 
-// Times-compatible serif for the "Pit Wall" wordmark.
+// Times-compatible serif for the "Portside" wordmark.
 const serif = Tinos({
   subsets: ["latin"],
   weight: ["400", "700"],
@@ -27,7 +27,7 @@ const serif = Tinos({
 });
 
 export const metadata: Metadata = {
-  title: "Pit Wall — Client Delivery Portal",
+  title: "Portside — Client Delivery Portal",
   description:
     "Client-engagement workspace: private and shared document spaces, approvals, and audit trail.",
 };
@@ -48,7 +48,7 @@ export default async function RootLayout({
         <header className="header">
           <Link href="/" className="brand">
             <span className="brand-mark" aria-hidden="true" />
-            <span className="brand-name">Pit Wall</span>
+            <span className="brand-name">Portside</span>
             <span className="brand-sub">/ Client Delivery</span>
           </Link>
           <RoleToggle role={role} />

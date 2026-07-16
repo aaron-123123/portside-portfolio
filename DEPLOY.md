@@ -1,8 +1,8 @@
-# Pit Wall — setup & deployment (no coding needed)
+# Portside — setup & deployment (no coding needed)
 
 This guide has two parts:
 
-- **Part A** — get Pit Wall running on your own computer.
+- **Part A** — get Portside running on your own computer.
 - **Part B** — put it online with Vercel so you can share a link.
 
 You will copy and paste a few values. You never have to write code.
@@ -82,7 +82,7 @@ do it yourself later, any push to GitHub works.)
 
 1. Go to <https://vercel.com> and sign in **with GitHub**.
 2. Click **Add New… → Project**.
-3. Find the **pit-wall** repository and click **Import**.
+3. Find the **portside-portfolio** repository and click **Import**.
 
 ### B3. Add the four settings in Vercel
 
@@ -98,7 +98,7 @@ values from step A3. The names must match exactly:
 ### B4. Deploy
 
 Click **Deploy** and wait ~1 minute. Vercel gives you a public link like
-`https://pit-wall-xxxx.vercel.app`. That is the link you can send.
+`https://portside-portfolio-xxxx.vercel.app`. That is the link you can send.
 
 Because your Vercel app talks to the **same** Supabase project you seeded in Part A,
 your sample engagements are already there — no extra step needed.

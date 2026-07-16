@@ -1,4 +1,4 @@
-// Shared domain types for Pit Wall.
+// Shared domain types for Portside.
 
 // Three access tiers. The two client tiers are enforced separately by the DB:
 //   client_contact — project lead, full shared view

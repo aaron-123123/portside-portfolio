@@ -1,6 +1,6 @@
-# Pit Wall
+# Portside
 
-**Live demo:** https://pit-wall-portfolio.vercel.app  ·  switch between **EM**,
+**Live demo:** https://portside-portfolio.vercel.app  ·  switch between **EM**,
 **Sponsor**, and **Lead** (top right) to see the access boundary in action.
 
 A client-delivery workspace for a professional-services consultancy. Each client
@@ -9,7 +9,7 @@ engagement gets two document spaces:
 - a **Private Space** — internal to the delivery team, and
 - a **Shared Space** — visible to the client.
 
-On top of that split, Pit Wall adds **approval sign-offs** (the delivery team asks
+On top of that split, Portside adds **approval sign-offs** (the delivery team asks
 the client to formally approve a shared document) and a timestamped **audit log**
 of everything that happens.
 
@@ -42,12 +42,12 @@ of everything that happens.
 
 ## The one idea worth understanding: access control is real, not a UI trick
 
-The whole point of Pit Wall is that a client **cannot** see the private space —
+The whole point of Portside is that a client **cannot** see the private space —
 and this is enforced in two independent layers, not by hiding a button.
 
 **Layer 1 — the server decides, the browser never holds a key.**
 The browser never talks to the database directly. Every file listing and every
-download goes through Pit Wall's own server. The server reads your tier — EM,
+download goes through Portside's own server. The server reads your tier — EM,
 client project lead, or client sponsor — from an **httpOnly cookie**, which
 browser JavaScript cannot read or forge. There is no database key sitting in the
 browser to steal or tamper with. The sponsor tier, for instance, cannot read a
@@ -146,7 +146,7 @@ in-memory demo.
 
 **Space Mono at regular weight** carries headings, labels, and data (hierarchy
 comes from size and spacing, not bold), paired with **Source Sans** for body
-copy and a **serif wordmark** (Tinos) for "Pit Wall". Warm cream `#F4F0ED` and
+copy and a **serif wordmark** (Tinos) for "Portside". Warm cream `#F4F0ED` and
 near-black `#22190C` carry almost everything; **coral `#FF4832` is reserved for
 a genuine decision** (the client's Approve) plus the "blocked" status. Bracketed
 `[ … ]` text links are the signature. Tokens live in `app/globals.css`.

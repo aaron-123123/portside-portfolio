@@ -1,7 +1,7 @@
-# Pit Wall — project guide
+# Portside — project guide
 
 A client-delivery portal (portfolio piece). Next.js 16 (App Router) + Supabase,
-deployed on Vercel. Public repo `aaron-123123/pit-wall-portfolio`. User-facing
+deployed on Vercel. Public repo `aaron-123123/portside-portfolio`. User-facing
 setup lives in `README.md` / `DEPLOY.md`; this file is the map for editing the code.
 
 ## Commands
@@ -75,7 +75,7 @@ re-checks `getRole()` server-side.
   (decisions only), rust `#834A33`, muted `#6B655C` (~4.5:1 on cream, WCAG AA).
 - **Space Mono at weight 400 only** for headings/labels/chips (hierarchy via
   size + spacing, never bold); **Source Sans** body; **Tinos** serif for the
-  "Pit Wall" wordmark. Fonts loaded in `app/layout.tsx`.
+  "Portside" wordmark. Fonts loaded in `app/layout.tsx`.
 - Bracketed `[ LABEL ]` text links are the signature; coral is reserved to the
   Approve decision + `blocked` status + brand mark; 2px radius; pill role toggle.
 

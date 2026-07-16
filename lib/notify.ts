@@ -42,7 +42,7 @@ async function maybeSendEmail(summary: string): Promise<void> {
       body: JSON.stringify({
         from,
         to,
-        subject: "Pit Wall — engagement update",
+        subject: "Portside — engagement update",
         text: summary,
       }),
     });

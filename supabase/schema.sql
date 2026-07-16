@@ -1,5 +1,5 @@
 -- ============================================================================
--- Pit Wall — database schema, Row Level Security, and storage bucket.
+-- Portside — database schema, Row Level Security, and storage bucket.
 -- Run this ONCE in the Supabase SQL Editor (see DEPLOY.md for exact steps).
 -- It is safe to re-run: every statement is idempotent.
 --
