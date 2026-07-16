@@ -18,11 +18,20 @@ import type {
  * documents simply gets none.
  */
 
-export async function getEngagements(): Promise<Engagement[]> {
+export async function getEngagements(
+  filter: "active" | "archived" | "all" = "active",
+): Promise<Engagement[]> {
   const role = await getRole();
+  if (filter === "all") {
+    return queryAsRole<Engagement>(
+      role,
+      "select * from engagements order by client_name asc",
+    );
+  }
   return queryAsRole<Engagement>(
     role,
-    "select * from engagements order by client_name asc",
+    "select * from engagements where status = $1 order by client_name asc",
+    [filter],
   );
 }
 

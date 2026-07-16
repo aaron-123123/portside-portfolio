@@ -180,6 +180,23 @@ a {
   color: var(--ink);
 }
 
+.lifecycle-tabs {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 24px;
+}
+
+.lifecycle-tabs a {
+  color: var(--muted);
+}
+
+.lifecycle-tabs a:hover,
+.lifecycle-tabs a.active {
+  color: var(--ink);
+}
+
 /* ---------- Client roster (homepage monospace list) ---------- */
 
 .roster {
@@ -326,6 +343,11 @@ a {
   border-color: var(--ink);
   background: var(--ink);
   color: var(--cream);
+}
+
+.chip--archived {
+  border-color: var(--muted);
+  color: var(--muted);
 }
 
 /* ---------- Buttons ---------- */

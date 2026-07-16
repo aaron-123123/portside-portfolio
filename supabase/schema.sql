@@ -19,6 +19,15 @@ create table if not exists public.engagements (
   created_at  timestamptz not null default now()
 );
 
+-- Lifecycle state: an engagement that's wound down moves out of the default
+-- roster view rather than living forever as "active" (idempotent backfill).
+alter table public.engagements
+  add column if not exists status text not null default 'active';
+
+alter table public.engagements drop constraint if exists engagements_status_check;
+alter table public.engagements add constraint engagements_status_check
+  check (status in ('active', 'archived'));
+
 create table if not exists public.documents (
   id               uuid primary key default gen_random_uuid(),
   engagement_id    uuid not null references public.engagements(id) on delete cascade,
@@ -98,7 +107,7 @@ create table if not exists public.audit_log (
   id            uuid primary key default gen_random_uuid(),
   engagement_id uuid not null references public.engagements(id) on delete cascade,
   document_id   uuid references public.documents(id) on delete set null,
-  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse')),
+  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status')),
   actor_role    text not null check (actor_role in ('em', 'client_contact', 'client_exec')),
   detail        text not null,
   created_at    timestamptz not null default now()
@@ -115,7 +124,7 @@ create index if not exists audit_engagement_idx      on public.audit_log(engagem
 -- action items, pulse, and the split client roles existed (idempotent).
 alter table public.audit_log drop constraint if exists audit_log_event_check;
 alter table public.audit_log add constraint audit_log_event_check
-  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse'));
+  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status'));
 
 alter table public.audit_log drop constraint if exists audit_log_actor_role_check;
 alter table public.audit_log add constraint audit_log_actor_role_check
@@ -148,7 +157,7 @@ grant execute on function public.app_role(), public.is_client() to authenticated
 -- ---------------------------------------------------------------------------
 
 grant usage on schema public to authenticated;
-grant select                 on public.engagements  to authenticated;
+grant select, update         on public.engagements  to authenticated;
 grant select, insert, update on public.documents    to authenticated;
 grant select, insert, update on public.approvals    to authenticated;
 grant select, insert, update on public.milestones   to authenticated;
@@ -170,11 +179,17 @@ alter table public.check_ins    enable row level security;
 alter table public.updates      enable row level security;
 alter table public.audit_log    enable row level security;
 
--- Engagements: any signed-in viewer may list them.
+-- Engagements: any signed-in viewer may list them; only EM changes lifecycle status.
 drop policy if exists engagements_select on public.engagements;
 create policy engagements_select on public.engagements
   for select to authenticated
   using (true);
+
+drop policy if exists engagements_update on public.engagements;
+create policy engagements_update on public.engagements
+  for update to authenticated
+  using (public.app_role() = 'em')
+  with check (public.app_role() = 'em');
 
 -- Documents: EM sees all; the project lead sees shared docs; the sponsor (exec)
 -- sees NO documents — a genuine third access tier, enforced by the database.

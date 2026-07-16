@@ -234,6 +234,45 @@ export async function approveDocumentAction(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Engagement lifecycle (EM only)
+// ---------------------------------------------------------------------------
+
+/** EM-only: move an engagement between active and archived. */
+export async function setEngagementStatusAction(
+  formData: FormData,
+): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") {
+    throw new Error("Only the EM view can change an engagement's status.");
+  }
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (status !== "active" && status !== "archived") {
+    throw new Error("Status must be active or archived.");
+  }
+
+  const rows = await queryAsRole<{ client_name: string }>(
+    "em",
+    "update engagements set status = $1 where id = $2 returning client_name",
+    [status, engagementId],
+  );
+  if (!rows[0]) throw new Error("Engagement not found.");
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "engagement_status",
+    actorRole: role,
+    detail: `${status === "archived" ? "Archived" : "Reactivated"} the engagement`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+  revalidatePath("/");
+}
+
+// ---------------------------------------------------------------------------
 // Timeline / milestones (EM manages; everyone can view)
 // ---------------------------------------------------------------------------
 

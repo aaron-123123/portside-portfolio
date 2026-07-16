@@ -22,6 +22,8 @@ import { Pulse } from "@/app/components/Pulse";
 import { UpdatesFeed } from "@/app/components/UpdatesFeed";
 import { DocumentRow } from "@/app/components/DocumentRow";
 import { UploadPanel } from "@/app/components/UploadPanel";
+import { SubmitButton } from "@/app/components/SubmitButton";
+import { setEngagementStatusAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +80,29 @@ export default async function EngagementPage({
         ← All engagements
       </Link>
       <p className="eyebrow">Engagement</p>
-      <h1 className="page-title">{engagement.client_name}</h1>
+      <div className="field-row" style={{ alignItems: "baseline", justifyContent: "space-between" }}>
+        <h1 className="page-title">
+          {engagement.client_name}
+          {engagement.status === "archived" && (
+            <span className="chip chip--archived" style={{ marginLeft: 12 }}>
+              Archived
+            </span>
+          )}
+        </h1>
+        {isEm && (
+          <form action={setEngagementStatusAction}>
+            <input type="hidden" name="engagementId" value={id} />
+            <input
+              type="hidden"
+              name="status"
+              value={engagement.status === "archived" ? "active" : "archived"}
+            />
+            <SubmitButton className="btn" pendingText="Updating…">
+              {engagement.status === "archived" ? "Reactivate" : "Archive"}
+            </SubmitButton>
+          </form>
+        )}
+      </div>
 
       <StatusCard
         status={status}

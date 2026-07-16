@@ -15,9 +15,12 @@ export type OwnerSide = "team" | "client";
 
 export type ActionStatus = "open" | "done";
 
+export type EngagementLifecycle = "active" | "archived";
+
 export interface Engagement {
   id: string;
   client_name: string;
+  status: EngagementLifecycle;
   created_at: string;
 }
 
@@ -96,7 +99,8 @@ export type AuditEvent =
   | "approved"
   | "milestone"
   | "action_item"
-  | "pulse";
+  | "pulse"
+  | "engagement_status";
 
 export interface AuditRow {
   id: string;
