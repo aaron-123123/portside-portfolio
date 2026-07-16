@@ -66,8 +66,12 @@ and others) — not real companies.
 
 **Try it:**
 - Click a client with the **EM** tier selected (top right) — you'll see the
-  Private Space, the Shared Space, the Activity Log, and a client-pulse rollup
-  on the home page.
+  Private Space, the Shared Space, the Activity Log, a client-pulse rollup and
+  a Team Workload rollup on the home page.
+- Still as EM, try **New engagement** at the bottom of the home page — it
+  drops you straight into the new (empty) engagement, no seed script needed.
+  On that engagement's page, try **Set branding** (a logo URL + accent color)
+  and **Time & Budget** (set a budget, log some hours).
 - Switch to **Lead** (top right). The Private Space and Activity Log disappear,
   you can approve the pending document, and you can comment on a shared document.
 - Switch to **Sponsor**. You'll see a one-glance status summary only — no

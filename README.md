@@ -31,18 +31,29 @@ of everything that happens.
   - **Client · Project Lead** — full shared view; approves; closes client tasks;
     comments on shared documents.
   - **Client · Sponsor** — a one-glance status summary only, with **no documents**.
-- **Private / Shared documents** with real uploads, approval sign-offs, and one
+- **Private / Shared documents** with real uploads, approval sign-offs, one
   comment thread per shared document (not general chat — see [Honest scope
-  notes](#honest-scope-notes-the-kind-an-interviewer-will-probe)).
+  notes](#honest-scope-notes-the-kind-an-interviewer-will-probe)), and version
+  history — re-uploading a file with the same name adds a version instead of
+  an unrelated one, each with its own independent sign-off.
 - **Pulse / CSAT** — completing a milestone automatically opens a 1–5 pulse for
   the client; the EM sees the running average per engagement, plus a rollup
   across every engagement (sorted worst-first) on the home page.
+- **Named assignees** on team-owned milestones/action items, plus an EM-only
+  **Team Workload** rollup — open items by assignee across every engagement,
+  sorted busiest-first.
+- **Time & budget** (EM-only, internal) — hours logged against a per-engagement
+  budget, deliberately not a billing system: no rates, no invoices.
 - **Automated status feed** — client-relevant events (a milestone completes, a
   document is shared) auto-append to an Updates feed. Real email push is wired
   behind an env flag (Resend); the EM sees a one-line status showing whether
   it's actually configured or the in-app feed is the only channel.
-- **Engagement lifecycle** — EM can archive a wound-down engagement; the roster
-  defaults to active only, with an EM-only Archived tab.
+- **Engagement lifecycle** — EM creates a new engagement straight from the
+  roster (no seed script needed) and can later archive a wound-down one; the
+  roster defaults to active only, with an EM-only Archived tab.
+- **Per-engagement branding** — an optional client logo + accent color, shown
+  to every tier, applied only as decoration next to the client name — never on
+  a button or status chip, so it can't compete with coral's reserved meaning.
 - **Roster search** — a client-name filter appears once there are enough
   engagements to need one.
 - **Audit log** — every event, timestamped, internal to the delivery team.
@@ -162,6 +173,18 @@ in-memory demo.
   *shared* document is a deliberately narrow exception to that rule, not a
   reversal of it — it's scoped to a single document's sign-off conversation,
   not a messaging feature.
+- **Assignees are names, not accounts.** A team member's name on an action
+  item or in the workload rollup is free text, the same pattern the audit log
+  and pulse responses already use — there's no user/directory table backing
+  it. A real deployment would tie it to the same identity that would replace
+  the EM/Client toggle.
+- **Time tracking is deliberately not a billing system.** Hours logged against
+  a budget, no rates, no invoices, no client visibility — an internal planning
+  number, not a finance feature.
+- **A client logo is a URL, not an upload.** Reusing the existing private
+  Storage bucket for something purely decorative would add real plumbing for
+  no functional gain; an EM-supplied image URL is the right amount of
+  engineering for a branding accent.
 
 ---
 

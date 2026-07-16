@@ -58,11 +58,25 @@ redundant foreign key column like this, cross-check it in the policy too.
 
 ## Data model (`supabase/schema.sql`)
 
-`engagements` (has a `status`: `active` | `archived`, EM-only to change) ·
-`documents` (private/shared) · `document_comments` (one thread per *shared*
-document — RLS mirrors `documents_select` exactly) · `approvals` · `milestones` ·
-`action_items` · `check_ins` (pulse/CSAT) · `updates` (client status feed) ·
+`engagements` (has a `status`: `active` | `archived`, EM-only to change; also
+`budget_hours`, `logo_url`, `accent_color` — all EM-only to set, the latter two
+readable by every tier since they're just decoration) · `documents` (private/
+shared, versioned — see below) · `document_comments` (one thread per *shared*
+document — RLS mirrors `documents_select` exactly) · `approvals` · `milestones`
+· `action_items` (both have a free-text `assignee`, only meaningful when
+`owner_side = 'team'`) · `check_ins` (pulse/CSAT) · `updates` (client status
+feed) · `time_entries` (internal only — same RLS boundary as `audit_log`) ·
 `audit_log`. RLS policies key on `public.app_role()` and `public.is_client()`.
+
+**Document versioning:** `documents.family_id` + `.version` — all versions of
+"the same" document share `family_id` (an independently generated UUID, not
+necessarily equal to any version's own `id`); re-uploading a file with the
+same `name` as the current-latest document in that engagement adds a version
+in the same family instead of an unrelated row (`uploadDocumentAction` in
+`app/actions.ts`). `getDocuments` only surfaces the latest version per family
+(`lib/data.ts`); `getDocumentVersions` fetches the rest for history. Each
+version keeps its own independent approvals/comments — a fresh version starts
+its own sign-off, which is correct, not a gap.
 
 ## Key files
 
@@ -81,6 +95,8 @@ document — RLS mirrors `documents_select` exactly) · `approvals` · `mileston
 | UI components | `app/components/*` |
 | Pending-state submit button (`useFormStatus`) | `app/components/SubmitButton.tsx` |
 | Error / not-found boundaries | `app/error.tsx`, `app/not-found.tsx` |
+| Cross-engagement workload rollup (by assignee) | `app/components/WorkloadOverview.tsx` |
+| Time & budget (EM-only, internal) | `app/components/TimeBudget.tsx` |
 | Automated RLS boundary test | `tests/rls.test.mts` |
 | CI | `.github/workflows/ci.yml` |
 | Schema + RLS | `supabase/schema.sql` |
@@ -115,8 +131,12 @@ state to EM in the Updates panel): `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL`,
 - Server actions live in `app/actions.ts` (`'use server'`); forms post directly
   to them (progressive enhancement, minimal client JS).
 - **pg type parsers (`lib/db.ts`)**: `date` (OID 1082) is returned as a
-  `YYYY-MM-DD` string; `timestamptz` (1184) as an ISO string. Both are otherwise
-  JS `Date` objects by default — don't reintroduce that mismatch.
+  `YYYY-MM-DD` string; `timestamptz` (1184) as an ISO string. `numeric` (1700 —
+  `budget_hours`, `time_entries.hours`) as a JS `number` via `parseFloat`. All
+  three are otherwise pg defaults (JS `Date` objects, or a string for numeric)
+  that would silently break call sites expecting the declared TS type — don't
+  reintroduce that mismatch, and add a parser here for any future numeric
+  column before doing arithmetic on it.
 - `supabase/schema.sql` is idempotent; keep it that way (`create … if not exists`,
   `drop policy if exists`, `add column if not exists`, constraint drop+recreate).
 - Repo is connected to Vercel — a push to `main` auto-deploys. CI runs first
