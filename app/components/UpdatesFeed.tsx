@@ -8,9 +8,13 @@ import type { Update } from "@/lib/types";
 export function UpdatesFeed({
   updates,
   title = "Updates",
+  emailPushConfigured,
 }: {
   updates: Update[];
   title?: string;
+  // EM-only: show whether the (currently inert-by-default) email push is
+  // actually configured, alongside this always-on in-app feed.
+  emailPushConfigured?: boolean;
 }) {
   return (
     <section className="section">
@@ -18,6 +22,14 @@ export function UpdatesFeed({
         <h2 className="section-title">{title}</h2>
         <span className="section-note">Auto-generated</span>
       </div>
+      {emailPushConfigured !== undefined && (
+        <p className="notice">
+          Email push:{" "}
+          {emailPushConfigured
+            ? "configured — client-relevant events also send an email."
+            : "not configured — this in-app feed is the only delivery channel."}
+        </p>
+      )}
       {updates.length === 0 ? (
         <p className="empty">No updates yet.</p>
       ) : (

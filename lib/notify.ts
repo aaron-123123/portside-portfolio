@@ -24,6 +24,15 @@ export async function notifyClient(params: {
   await maybeSendEmail(params.summary);
 }
 
+/** Whether the email-push path is wired up (EM-only status display). */
+export function isEmailPushConfigured(): boolean {
+  return Boolean(
+    process.env.RESEND_API_KEY &&
+      process.env.CLIENT_NOTIFY_EMAIL &&
+      process.env.NOTIFY_FROM_EMAIL,
+  );
+}
+
 async function maybeSendEmail(summary: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.CLIENT_NOTIFY_EMAIL;

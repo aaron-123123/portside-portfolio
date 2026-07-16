@@ -24,6 +24,7 @@ import { DocumentRow } from "@/app/components/DocumentRow";
 import { UploadPanel } from "@/app/components/UploadPanel";
 import { SubmitButton } from "@/app/components/SubmitButton";
 import { setEngagementStatusAction } from "@/app/actions";
+import { isEmailPushConfigured } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,10 @@ export default async function EngagementPage({
 
           <Pulse checkIns={checkIns} role={role} engagementId={id} />
 
-          <UpdatesFeed updates={updates} />
+          <UpdatesFeed
+            updates={updates}
+            emailPushConfigured={isEm ? isEmailPushConfigured() : undefined}
+          />
 
           <Timeline milestones={milestones} role={role} engagementId={id} />
 
