@@ -10,9 +10,15 @@ setup lives in `README.md` / `DEPLOY.md`; this file is the map for editing the c
 - `npm run build` — production build + typecheck (run before pushing).
 - `npm run seed` — reset the sample data (uses `node --env-file=.env.local`;
   fixed engagement IDs, so it's idempotent).
+- `npm test` — runs `tests/*.test.mts` (Node's built-in test runner) against the
+  real database in `DATABASE_URL`. No mocks: it proves the RLS boundary directly,
+  the same way production traffic hits it.
 - `npm run lint`.
 - Apply the schema: paste `supabase/schema.sql` into the Supabase SQL Editor
   (idempotent — safe to re-run; it also `ALTER`s constraints for older DBs).
+- CI (`.github/workflows/ci.yml`): lint+build run on every push/PR with no
+  secrets needed; the RLS test additionally needs a `DATABASE_URL` repo secret
+  and is skipped (not failed) on fork PRs, which never receive secrets.
 
 ## The core idea: two-layer access control (don't break this)
 
@@ -33,15 +39,28 @@ lead), **`client_exec`** (client sponsor).
 The **Supabase JS client** (`lib/supabase.ts`) is used *only* for Storage
 (uploads + signed download URLs). The `service_role` key never reaches the browser.
 
-Guarantees (verified, keep them true): `client_exec` reads zero documents;
-`client_contact` sees only `shared` docs; clients never read `audit_log`; a
-private file 403s even by exact id (`app/api/download/[docId]/route.ts` reads the
-row *as the role* before signing a URL). Every mutation in `app/actions.ts`
-re-checks `getRole()` server-side.
+Guarantees (verified, keep them true — and enforced by `tests/rls.test.mts` in
+CI, not just this paragraph): `client_exec` reads zero documents; `client_contact`
+sees only `shared` docs; clients never read `audit_log`; a private file 403s even
+by exact id (`app/api/download/[docId]/route.ts` reads the row *as the role*
+before signing a URL). Every mutation in `app/actions.ts` re-checks `getRole()`
+server-side, AND inserts/updates *as that role* via `queryAsRole` so the RLS
+`with check` clause is the real gate, not the app-layer `if`.
+
+**Gotcha learned the hard way:** an RLS `with check` must validate every
+client-controlled column it inserts, not just the "obvious" one. The first cut
+of `document_comments_insert` checked the document's visibility but not that
+the (denormalized) `engagement_id` column matched that document's real
+engagement — a tampered hidden form field could pass. Fixed by adding an
+`exists (select 1 from documents where id = document_id and engagement_id =
+document_comments.engagement_id)` clause. If you add another table with a
+redundant foreign key column like this, cross-check it in the policy too.
 
 ## Data model (`supabase/schema.sql`)
 
-`engagements` · `documents` (private/shared) · `approvals` · `milestones` ·
+`engagements` (has a `status`: `active` | `archived`, EM-only to change) ·
+`documents` (private/shared) · `document_comments` (one thread per *shared*
+document — RLS mirrors `documents_select` exactly) · `approvals` · `milestones` ·
 `action_items` · `check_ins` (pulse/CSAT) · `updates` (client status feed) ·
 `audit_log`. RLS policies key on `public.app_role()` and `public.is_client()`.
 
@@ -57,7 +76,13 @@ re-checks `getRole()` server-side.
 | Audit / status-feed writes | `lib/audit.ts`, `lib/notify.ts` |
 | All mutations (server actions) | `app/actions.ts` |
 | Engagement page (composed per tier) | `app/engagement/[id]/page.tsx` |
+| Home / roster page | `app/page.tsx` |
+| "How this works" page | `app/how-it-works/page.tsx` |
 | UI components | `app/components/*` |
+| Pending-state submit button (`useFormStatus`) | `app/components/SubmitButton.tsx` |
+| Error / not-found boundaries | `app/error.tsx`, `app/not-found.tsx` |
+| Automated RLS boundary test | `tests/rls.test.mts` |
+| CI | `.github/workflows/ci.yml` |
 | Schema + RLS | `supabase/schema.sql` |
 | Sample data | `scripts/seed.mjs` |
 | Design tokens / styles | `app/globals.css`, fonts in `app/layout.tsx` |
@@ -66,8 +91,11 @@ re-checks `getRole()` server-side.
 
 `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`
 (Supabase **transaction pooler** string, port 6543). Optional email push
-(inert unless all set): `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL`,
+(inert unless all set — `lib/notify.ts` `isEmailPushConfigured()` reports the
+state to EM in the Updates panel): `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL`,
 `CLIENT_NOTIFY_EMAIL`. Same three (+ optional) are set in Vercel project settings.
+`DATABASE_URL` is *also* set as a GitHub Actions repo secret, so CI can run
+`tests/rls.test.mts` against the real database.
 
 ## Design system
 
@@ -91,4 +119,10 @@ re-checks `getRole()` server-side.
   JS `Date` objects by default — don't reintroduce that mismatch.
 - `supabase/schema.sql` is idempotent; keep it that way (`create … if not exists`,
   `drop policy if exists`, `add column if not exists`, constraint drop+recreate).
-- Repo is connected to Vercel — a push to `main` auto-deploys.
+- Repo is connected to Vercel — a push to `main` auto-deploys. CI runs first
+  (see Commands above) but does not currently gate the Vercel deploy.
+- **`lib/data.ts` `getDocuments`**: uses correlated subqueries for `approvals`
+  and `comments`, not a `left join … group by`. A second one-to-many join
+  (adding comments to the existing approvals join) would have fanned out and
+  duplicated the approval row once per comment. If you add another related
+  table to this query, use a subquery, not another join.

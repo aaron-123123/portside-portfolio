@@ -57,17 +57,21 @@ I will run these for you:
 npm install        # download the building blocks (one time)
 npm run seed       # load the sample engagements + documents
 npm run dev        # start the app
+npm test           # optional: proves the access-control boundary automatically
 ```
 
-Then open **<http://localhost:3000>** in your browser. You should see the client
-roster (Contoso Super, Fabrikam Health Network, Northwind Water Authority) — these
-are placeholder names, not real companies.
+Then open **<http://localhost:3000>** in your browser. You should see a roster of
+six placeholder clients (Contoso Super, Fabrikam Health Network, Woodgrove Bank,
+and others) — not real companies.
 
 **Try it:**
-- Click **Contoso Super** in **EM View** — you'll see the Private Space, the
-  Shared Space, and the Activity Log.
-- Switch to **Client View** (top right). The Private Space and Activity Log
-  disappear, and you can approve the pending document.
+- Click a client with the **EM** tier selected (top right) — you'll see the
+  Private Space, the Shared Space, the Activity Log, and a client-pulse rollup
+  on the home page.
+- Switch to **Lead** (top right). The Private Space and Activity Log disappear,
+  you can approve the pending document, and you can comment on a shared document.
+- Switch to **Sponsor**. You'll see a one-glance status summary only — no
+  documents at all, by design.
 
 ---
 
@@ -84,7 +88,7 @@ do it yourself later, any push to GitHub works.)
 2. Click **Add New… → Project**.
 3. Find the **portside-portfolio** repository and click **Import**.
 
-### B3. Add the four settings in Vercel
+### B3. Add the three settings in Vercel
 
 Before clicking Deploy, open **Environment Variables** and add the same three
 values from step A3. The names must match exactly:
@@ -102,6 +106,18 @@ Click **Deploy** and wait ~1 minute. Vercel gives you a public link like
 
 Because your Vercel app talks to the **same** Supabase project you seeded in Part A,
 your sample engagements are already there — no extra step needed.
+
+### B5. (Optional) Turn on the automated tests in GitHub
+
+The repo includes a GitHub Actions check that automatically re-verifies the
+access-control boundary on every push. Lint and build run with no setup. To
+also run the automated test:
+
+1. On GitHub, open your repo → **Settings → Secrets and variables → Actions**.
+2. Click **New repository secret**, name it `DATABASE_URL`, and paste the same
+   connection string from A3.
+
+Skip this and the test simply won't run in GitHub — everything else still works.
 
 ---
 

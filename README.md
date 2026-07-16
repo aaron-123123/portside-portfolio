@@ -16,8 +16,8 @@ of everything that happens.
 > This is a portfolio prototype. It models the "Spaces" pattern from professional
 > services-automation tools, rebuilt to look and behave like an in-house delivery
 > tool rather than a generic SaaS product. The consultancy, its clients (Contoso,
-> Fabrikam, Northwind — standard placeholder names, not real companies), and all
-> engagement content are fictional.
+> Fabrikam, Woodgrove Bank, and others — standard placeholder names, not real
+> companies), and all engagement content are fictional.
 
 ## What the portal does
 
@@ -28,15 +28,27 @@ of everything that happens.
   plus open action items, per side.
 - **Three access tiers**, enforced by the database, not the UI:
   - **EM** (delivery team) — full workspace, manages everything.
-  - **Client · Project Lead** — full shared view; approves; closes client tasks.
+  - **Client · Project Lead** — full shared view; approves; closes client tasks;
+    comments on shared documents.
   - **Client · Sponsor** — a one-glance status summary only, with **no documents**.
-- **Private / Shared documents** with real uploads and approval sign-offs.
+- **Private / Shared documents** with real uploads, approval sign-offs, and one
+  comment thread per shared document (not general chat — see [Honest scope
+  notes](#honest-scope-notes-the-kind-an-interviewer-will-probe)).
 - **Pulse / CSAT** — completing a milestone automatically opens a 1–5 pulse for
-  the client; the EM sees the running average and every response.
+  the client; the EM sees the running average per engagement, plus a rollup
+  across every engagement (sorted worst-first) on the home page.
 - **Automated status feed** — client-relevant events (a milestone completes, a
   document is shared) auto-append to an Updates feed. Real email push is wired
-  behind an env flag (Resend) and off by default.
+  behind an env flag (Resend); the EM sees a one-line status showing whether
+  it's actually configured or the in-app feed is the only channel.
+- **Engagement lifecycle** — EM can archive a wound-down engagement; the roster
+  defaults to active only, with an EM-only Archived tab.
+- **Roster search** — a client-name filter appears once there are enough
+  engagements to need one.
 - **Audit log** — every event, timestamped, internal to the delivery team.
+- **["How this works"](https://portside-portfolio.vercel.app/how-it-works)** —
+  an in-app page walking through the access-control architecture below, so the
+  story travels with the demo link.
 
 ---
 
@@ -78,6 +90,10 @@ Put together, the demonstrable claim is:
 > never leaves the database for a client role. There is nothing to intercept.
 
 That is the difference between a real access-control boundary and a filtered list.
+And it isn't just a claim to go try by hand: **`tests/rls.test.mts` runs this
+same check (and three others — no shared-doc access, no audit-log access) against
+the live database on every push, in CI.** If a future change ever weakened the
+boundary, the build goes red before it ships.
 
 ### Where each piece lives in the code
 
@@ -88,6 +104,7 @@ That is the difference between a real access-control boundary and a filtered lis
 | RLS policies (the database-level lock) | `supabase/schema.sql` |
 | Download check (RLS read, then sign URL) | `app/api/download/[docId]/route.ts` |
 | Server-side role checks on every write | `app/actions.ts` |
+| Automated proof of the boundary, run in CI | `tests/rls.test.mts` |
 
 ---
 
@@ -131,14 +148,20 @@ in-memory demo.
   part — that the claim drives *database-enforced* access — is already real and
   would not change. The toggle just stands in for "who is logged in". A visitor
   with no cookie defaults to the **least-privileged** client view, never EM.
+  This is a deliberate choice, not an oversight: the point of a public demo link
+  is that anyone can explore all three tiers with one click, and a login wall
+  would work against that.
 - **Roles are tiers, not per-client identities.** The RLS predicates key on the
   tier (`em` / `client_contact` / `client_exec`), so within the demo any client
   session can see any engagement's shared data. A production build would add an
   engagement/user claim to the same policies — the enforcement mechanism is
   identical, only the predicate gets narrower.
 - **Intentionally out of scope:** real-time collaborative editing, third-party
-  file embeds, chat threads. These add complexity without adding to the story this
-  prototype is meant to tell.
+  file embeds, and general chat/messaging. These add complexity without adding
+  to the story this prototype is meant to tell. The one comment thread per
+  *shared* document is a deliberately narrow exception to that rule, not a
+  reversal of it — it's scoped to a single document's sign-off conversation,
+  not a messaging feature.
 
 ---
 
@@ -157,6 +180,9 @@ a genuine decision** (the client's Approve) plus the "blocked" status. Bracketed
 - **Supabase** — Postgres (data), Storage (file bytes), Row Level Security (the
   database-level access lock).
 - **node-postgres (`pg`)** — the role-scoped database connection that enforces RLS.
+- **Node's built-in test runner** (`node --test`) for the RLS boundary test — no
+  test framework dependency.
+- **GitHub Actions** — lint + build + the RLS test run on every push and PR.
 - Deployed on **Vercel**.
 
 ---
@@ -172,3 +198,4 @@ for exact, click-by-click steps. In short:
 3. `npm install`
 4. `npm run seed` — loads the sample engagements and documents.
 5. `npm run dev` — open <http://localhost:3000>.
+6. `npm test` — runs the automated RLS boundary check against the same database.
