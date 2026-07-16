@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: Lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  rls-test:
+    name: RLS boundary test
+    runs-on: ubuntu-latest
+    # Fork PRs never receive repo secrets, so DATABASE_URL is unavailable there —
+    # skip rather than fail with a confusing "missing env var" error.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --test "tests/*.test.mts"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
