@@ -350,6 +350,61 @@ a {
   color: var(--muted);
 }
 
+/* ---------- CSAT overview (all engagements) ---------- */
+
+.csat-list {
+  border-top: 1px solid var(--line);
+}
+
+.csat-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.csat-name {
+  flex: 1 1 160px;
+  font-family: var(--font-mono);
+}
+
+.csat-track {
+  flex: 2 1 140px;
+  height: 4px;
+  background: var(--line);
+}
+
+.csat-fill {
+  height: 100%;
+}
+
+.csat-fill--good {
+  background: var(--ink);
+}
+
+.csat-fill--caution {
+  background: var(--rust);
+}
+
+.csat-fill--concern {
+  background: var(--coral);
+}
+
+.csat-score {
+  font-family: var(--font-mono);
+  width: 48px;
+  text-align: right;
+}
+
+.csat-count {
+  color: var(--muted);
+  font-size: 12px;
+  width: 100px;
+  text-align: right;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {

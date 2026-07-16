@@ -151,6 +151,66 @@ export async function getEngagementStatuses(): Promise<
   return out;
 }
 
+export interface CsatByEngagement {
+  engagementId: string;
+  clientName: string;
+  average: number;
+  count: number;
+}
+
+export interface CsatOverview {
+  overallAverage: number | null;
+  totalResponses: number;
+  byEngagement: CsatByEngagement[];
+}
+
+/**
+ * Roll up submitted pulse scores across every engagement — the per-engagement
+ * average (lib/status.ts) already exists, but nothing today shows an EM
+ * whether satisfaction is trending well across the whole practice at a glance.
+ */
+export async function getCsatOverview(): Promise<CsatOverview> {
+  const role = await getRole();
+  const rows = await queryAsRole<{
+    engagement_id: string;
+    client_name: string;
+    score: number;
+  }>(
+    role,
+    `select c.engagement_id, e.client_name, c.score
+       from check_ins c
+       join engagements e on e.id = c.engagement_id
+      where c.status = 'submitted' and c.score is not null`,
+  );
+
+  const byId = new Map<string, { clientName: string; scores: number[] }>();
+  for (const row of rows) {
+    const entry = byId.get(row.engagement_id) ?? {
+      clientName: row.client_name,
+      scores: [],
+    };
+    entry.scores.push(row.score);
+    byId.set(row.engagement_id, entry);
+  }
+
+  const byEngagement: CsatByEngagement[] = Array.from(byId.entries())
+    .map(([engagementId, { clientName, scores }]) => ({
+      engagementId,
+      clientName,
+      count: scores.length,
+      average: scores.reduce((sum, s) => sum + s, 0) / scores.length,
+    }))
+    .sort((a, b) => a.average - b.average);
+
+  const allScores = rows.map((r) => r.score);
+  const overallAverage =
+    allScores.length === 0
+      ? null
+      : allScores.reduce((sum, s) => sum + s, 0) / allScores.length;
+
+  return { overallAverage, totalResponses: allScores.length, byEngagement };
+}
+
 /** Count documents per engagement for the roster, respecting RLS. */
 export async function getDocumentCounts(): Promise<Record<string, number>> {
   const role = await getRole();

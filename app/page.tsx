@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { isConfigured } from "@/lib/supabase";
-import { getEngagements, getEngagementStatuses } from "@/lib/data";
+import { getCsatOverview, getEngagements, getEngagementStatuses } from "@/lib/data";
 import { getRole } from "@/lib/session";
 import { ConfigNotice } from "@/app/components/ConfigNotice";
 import { EngagementSearch } from "@/app/components/EngagementSearch";
+import { CsatOverview } from "@/app/components/CsatOverview";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +29,10 @@ export default async function Home({
   // Only EM may look at the archived roster — everyone else always sees active.
   const showArchived = isEm && archived === "1";
 
-  const [engagements, statuses] = await Promise.all([
+  const [engagements, statuses, csat] = await Promise.all([
     getEngagements(showArchived ? "archived" : "active"),
     getEngagementStatuses(),
+    isEm ? getCsatOverview() : Promise.resolve(null),
   ]);
 
   return (
@@ -57,6 +59,8 @@ export default async function Home({
       ) : (
         <EngagementSearch engagements={engagements} statuses={statuses} />
       )}
+
+      {csat && <CsatOverview data={csat} />}
     </main>
   );
 }
