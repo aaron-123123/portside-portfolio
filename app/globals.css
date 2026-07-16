@@ -44,6 +44,15 @@ a {
   text-decoration: none;
 }
 
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
 /* ---------- Layout shell ---------- */
 
 .header {
@@ -61,6 +70,25 @@ a {
   display: flex;
   align-items: baseline;
   gap: 11px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.header-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.header-link:hover {
+  color: var(--ink);
 }
 
 .brand-mark {
@@ -403,6 +431,42 @@ a {
   font-size: 12px;
   width: 100px;
   text-align: right;
+}
+
+/* ---------- How-it-works page ---------- */
+
+.kv-list {
+  border-top: 1px solid var(--line);
+}
+
+.kv-row {
+  display: flex;
+  gap: 16px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.kv-row dt {
+  flex: 1 1 220px;
+  color: var(--muted);
+}
+
+.kv-row dd {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.callout-box {
+  background: var(--white);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--coral);
+  padding: 18px 20px;
+  margin: 20px 0;
+}
+
+.callout-box p:last-child {
+  margin-bottom: 0;
 }
 
 /* ---------- Buttons ---------- */

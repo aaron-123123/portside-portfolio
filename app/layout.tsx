@@ -51,7 +51,12 @@ export default async function RootLayout({
             <span className="brand-name">Portside</span>
             <span className="brand-sub">/ Client Delivery</span>
           </Link>
-          <RoleToggle role={role} />
+          <div className="header-right">
+            <Link href="/how-it-works" className="header-link">
+              [ How this works ]
+            </Link>
+            <RoleToggle role={role} />
+          </div>
         </header>
         {children}
       </body>
