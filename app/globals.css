@@ -333,6 +333,18 @@ code {
   margin-top: 6px;
 }
 
+.doc-versions {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.doc-versions a {
+  color: var(--rust);
+}
+
 .doc-actions {
   display: flex;
   align-items: center;
@@ -374,6 +386,11 @@ code {
 }
 
 .chip--archived {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.chip--version {
   border-color: var(--muted);
   color: var(--muted);
 }

@@ -61,17 +61,43 @@ export async function uploadDocumentAction(formData: FormData): Promise<void> {
     throw new Error(`Upload failed: ${upload.error.message}`);
   }
 
+  // A same-named, currently-latest document in this engagement means this
+  // upload is a new version of it, not an unrelated file.
+  const existing = await queryAsRole<{ family_id: string; version: number }>(
+    "em",
+    `select family_id, version from documents
+      where engagement_id = $1 and name = $2
+      order by version desc limit 1`,
+    [engagementId, file.name],
+  );
+  const priorVersion = existing[0];
+
   // Insert the metadata row AS the EM role, so the RLS insert policy is
   // genuinely exercised, not just trusted application code.
-  let doc: { id: string; name: string } | undefined;
+  let doc: { id: string; name: string; version: number } | undefined;
   try {
-    const rows = await queryAsRole<{ id: string; name: string }>(
-      "em",
-      `insert into documents (engagement_id, name, storage_path, visibility, uploaded_by_role)
-       values ($1, $2, $3, $4, 'em')
-       returning id, name`,
-      [engagementId, file.name, storagePath, visibility],
-    );
+    const rows = priorVersion
+      ? await queryAsRole<{ id: string; name: string; version: number }>(
+          "em",
+          `insert into documents (engagement_id, name, storage_path, visibility, uploaded_by_role, family_id, version)
+           values ($1, $2, $3, $4, 'em', $5, $6)
+           returning id, name, version`,
+          [
+            engagementId,
+            file.name,
+            storagePath,
+            visibility,
+            priorVersion.family_id,
+            priorVersion.version + 1,
+          ],
+        )
+      : await queryAsRole<{ id: string; name: string; version: number }>(
+          "em",
+          `insert into documents (engagement_id, name, storage_path, visibility, uploaded_by_role)
+           values ($1, $2, $3, $4, 'em')
+           returning id, name, version`,
+          [engagementId, file.name, storagePath, visibility],
+        );
     doc = rows[0];
   } catch (err) {
     await admin.storage.from(STORAGE_BUCKET).remove([storagePath]);
@@ -88,7 +114,10 @@ export async function uploadDocumentAction(formData: FormData): Promise<void> {
     documentId: doc.id,
     event: "upload",
     actorRole: role,
-    detail: `Uploaded "${doc.name}" to the ${visibility} space`,
+    detail:
+      doc.version > 1
+        ? `Uploaded "${doc.name}" (v${doc.version}) to the ${visibility} space`
+        : `Uploaded "${doc.name}" to the ${visibility} space`,
   });
 
   if (visibility === "shared") {

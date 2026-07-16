@@ -6,6 +6,7 @@ import type {
   AuditRow,
   CheckIn,
   DocumentRecord,
+  DocumentVersion,
   Engagement,
   Milestone,
   Update,
@@ -66,8 +67,27 @@ export async function getDocuments(
             ) as comments
        from documents d
       where d.engagement_id = $1
+        and d.version = (
+          select max(d2.version) from documents d2 where d2.family_id = d.family_id
+        )
       order by d.created_at desc`,
     [engagementId],
+  );
+}
+
+/** Older versions of a document (latest is already in getDocuments), oldest first. */
+export async function getDocumentVersions(
+  familyId: string,
+  currentVersion: number,
+): Promise<DocumentVersion[]> {
+  const role = await getRole();
+  return queryAsRole<DocumentVersion>(
+    role,
+    `select id, name, version, visibility, created_at
+       from documents
+      where family_id = $1 and version < $2
+      order by version asc`,
+    [familyId, currentVersion],
   );
 }
 

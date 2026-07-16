@@ -5,10 +5,11 @@ import {
 } from "@/app/actions";
 import { SubmitButton } from "@/app/components/SubmitButton";
 import { DocumentComments } from "@/app/components/DocumentComments";
+import { getDocumentVersions } from "@/lib/data";
 import { formatTimestamp } from "@/lib/format";
 import type { DocumentRecord, Role } from "@/lib/types";
 
-export function DocumentRow({
+export async function DocumentRow({
   doc,
   role,
   engagementId,
@@ -19,6 +20,8 @@ export function DocumentRow({
 }) {
   const approval = doc.approvals?.[0];
   const uploader = doc.uploaded_by_role === "em" ? "Team" : "Client";
+  const priorVersions =
+    doc.version > 1 ? await getDocumentVersions(doc.family_id, doc.version) : [];
 
   return (
     <div className="doc-row">
@@ -36,8 +39,21 @@ export function DocumentRow({
             </>
           )}
         </div>
+        {priorVersions.length > 0 && (
+          <div className="doc-versions">
+            Version {doc.version} of {doc.version} — earlier:{" "}
+            {priorVersions.map((v, i) => (
+              <span key={v.id}>
+                {i > 0 && ", "}
+                <a href={`/api/download/${v.id}`}>v{v.version}</a>{" "}
+                ({formatTimestamp(v.created_at)})
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
+      {doc.version > 1 && <span className="chip chip--version">v{doc.version}</span>}
       <span className={`chip chip--${doc.visibility}`}>{doc.visibility}</span>
 
       {approval?.status === "pending" && (

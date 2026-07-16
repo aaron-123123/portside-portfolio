@@ -38,6 +38,20 @@ create table if not exists public.documents (
   created_at       timestamptz not null default now()
 );
 
+-- Versioning: all versions of "the same" document share family_id (the first
+-- version's own id); version increments. Re-uploading a file with the same
+-- name in the same engagement adds a version instead of an unrelated row.
+-- Each version keeps its own independent approvals/comments (a fresh version
+-- starts its own sign-off, which is the correct real-world behavior).
+alter table public.documents add column if not exists family_id uuid;
+update public.documents set family_id = id where family_id is null;
+alter table public.documents alter column family_id set not null;
+alter table public.documents alter column family_id set default gen_random_uuid();
+
+alter table public.documents add column if not exists version int not null default 1;
+
+create index if not exists documents_family_idx on public.documents(family_id);
+
 create table if not exists public.approvals (
   id            uuid primary key default gen_random_uuid(),
   document_id   uuid not null unique references public.documents(id) on delete cascade,

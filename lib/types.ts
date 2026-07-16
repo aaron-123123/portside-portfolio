@@ -51,8 +51,18 @@ export interface DocumentRecord {
   visibility: Visibility;
   uploaded_by_role: "em" | "client";
   created_at: string;
+  family_id: string;
+  version: number;
   approvals?: Approval[];
   comments?: DocumentComment[];
+}
+
+export interface DocumentVersion {
+  id: string;
+  name: string;
+  version: number;
+  visibility: Visibility;
+  created_at: string;
 }
 
 export interface Milestone {
