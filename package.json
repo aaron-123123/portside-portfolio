@@ -13,6 +13,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.4",
     "next": "16.2.10",
+    "openai": "^6.47.0",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"

@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { isConfigured } from "@/lib/supabase";
 import {
   getActionItems,
+  getAiAnswers,
   getAuditLog,
   getCheckIns,
   getDocuments,
   getEngagement,
+  getLatestAiDraft,
   getMilestones,
   getPendingApprovalCount,
   getTimeEntries,
@@ -14,6 +16,7 @@ import {
 } from "@/lib/data";
 import { getRole } from "@/lib/session";
 import { deriveStatus } from "@/lib/status";
+import { computeRiskSignals } from "@/lib/risk";
 import { formatTimestamp } from "@/lib/format";
 import { ConfigNotice } from "@/app/components/ConfigNotice";
 import { StatusCard } from "@/app/components/StatusCard";
@@ -24,6 +27,10 @@ import { UpdatesFeed } from "@/app/components/UpdatesFeed";
 import { DocumentRow } from "@/app/components/DocumentRow";
 import { UploadPanel } from "@/app/components/UploadPanel";
 import { SubmitButton } from "@/app/components/SubmitButton";
+import { AskPortside } from "@/app/components/AskPortside";
+import { StatusDigest } from "@/app/components/StatusDigest";
+import { RiskPanel } from "@/app/components/RiskPanel";
+import { MeetingNotesExtractor } from "@/app/components/MeetingNotesExtractor";
 import {
   setEngagementBrandingAction,
   setEngagementStatusAction,
@@ -49,15 +56,17 @@ export default async function EngagementPage({
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [milestones, actionItems, pendingApprovals, checkIns, updates] =
+  const [milestones, actionItems, pendingApprovals, checkIns, updates, aiAnswers] =
     await Promise.all([
       getMilestones(id),
       getActionItems(id),
       getPendingApprovalCount(id),
       getCheckIns(id),
       getUpdates(id),
+      getAiAnswers(id),
     ]);
   const status = deriveStatus(milestones);
+  const riskSignals = computeRiskSignals(milestones, actionItems, checkIns);
 
   const latestPulse =
     checkIns
@@ -72,6 +81,13 @@ export default async function EngagementPage({
   const documents = isEm || isLead ? await getDocuments(id) : [];
   const audit = isEm ? await getAuditLog(id) : [];
   const timeEntries = isEm ? await getTimeEntries(id) : [];
+  const [statusDigestDraft, riskFlagsDraft, actionItemsDraft] = isEm
+    ? await Promise.all([
+        getLatestAiDraft(id, "status_digest"),
+        getLatestAiDraft(id, "risk_flags"),
+        getLatestAiDraft(id, "action_items"),
+      ])
+    : [null, null, null];
 
   const privateDocs = documents.filter((d) => d.visibility === "private");
   const sharedDocs = documents.filter((d) => d.visibility === "shared");
@@ -175,6 +191,7 @@ export default async function EngagementPage({
           <Timeline milestones={milestones} role={role} engagementId={id} />
           <UpdatesFeed updates={updates.slice(0, 5)} title="Recent Updates" />
           <Pulse checkIns={checkIns} role={role} engagementId={id} />
+          <AskPortside engagementId={id} answers={aiAnswers} />
           <p className="notice">
             Sponsor view — a summary of delivery status. Your project lead has
             the full workspace, documents, and sign-offs.
@@ -196,7 +213,11 @@ export default async function EngagementPage({
             emailPushConfigured={isEm ? isEmailPushConfigured() : undefined}
           />
 
+          <AskPortside engagementId={id} answers={aiAnswers} />
+
           <Timeline milestones={milestones} role={role} engagementId={id} />
+
+          {isEm && <RiskPanel engagementId={id} signals={riskSignals} draft={riskFlagsDraft} />}
 
           {isEm && <UploadPanel engagementId={id} />}
 
@@ -255,6 +276,12 @@ export default async function EngagementPage({
               budgetHours={engagement.budget_hours}
               entries={timeEntries}
             />
+          )}
+
+          {isEm && <StatusDigest engagementId={id} draft={statusDigestDraft} />}
+
+          {isEm && (
+            <MeetingNotesExtractor engagementId={id} draft={actionItemsDraft} />
           )}
 
           {/* Activity log — internal audit trail. EM view only. */}

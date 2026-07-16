@@ -77,6 +77,38 @@ export default function HowItWorks() {
 
       <section className="section">
         <div className="section-head">
+          <h2 className="section-title">The AI layer is RLS-scoped too</h2>
+          <span className="section-note">Ask Portside</span>
+        </div>
+        <p>
+          Most delivery tools with an AI assistant never say how it interacts
+          with their access boundary. Portside&apos;s answer is: the same way
+          everything else does. &quot;Ask Portside&quot; answers a question by
+          calling the exact same role-scoped data helpers the page itself
+          renders from (<code>lib/data.ts</code>) — the same functions RLS
+          already filters for the document list, the timeline, the audit log.
+          Whatever those helpers didn&apos;t return, the model never saw and
+          cannot mention.
+        </p>
+        <p>
+          A client sponsor asking &quot;what documents are in this
+          engagement?&quot; gets an honest &quot;none visible to your
+          view&quot; — not because a prompt says <em>don&apos;t mention
+          documents</em>, but because <code>getDocuments()</code> was never
+          even called for that role (see the engagement page and{" "}
+          <code>askPortsideAction</code> in <code>app/actions.ts</code>).
+          Ask the same question as the EM or the project lead and the answer
+          is grounded in the real document list, because that role&apos;s
+          query actually returned one. The <code>ai_answers</code> table
+          carries its own RLS policy on top — a client tier can only ever
+          read questions asked under its own role; only the EM sees every
+          tier&apos;s history — enforced the same way as everything else in
+          this app, and covered by <code>tests/rls.test.mts</code>.
+        </p>
+      </section>
+
+      <section className="section">
+        <div className="section-head">
           <h2 className="section-title">Where each piece lives</h2>
           <span className="section-note">In the code</span>
         </div>
@@ -103,6 +135,12 @@ export default function HowItWorks() {
             <dt>Download check (RLS read, then a signed URL)</dt>
             <dd>
               <code>app/api/download/[docId]/route.ts</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>RLS-scoped AI answer (Ask Portside)</dt>
+            <dd>
+              <code>askPortsideAction</code> in <code>app/actions.ts</code>
             </dd>
           </div>
           <div className="kv-row">
@@ -162,6 +200,61 @@ export default function HowItWorks() {
             <dt>Per-engagement branding</dt>
             <dd>
               <code>engagements.logo_url</code> / <code>.accent_color</code>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2 className="section-title">AI-native, not AI-decoration</h2>
+          <span className="section-note">Second research pass</span>
+        </div>
+        <p>
+          A second research pass looked at Rocketlane&apos;s Nitro AI agents
+          and comparable tools, this time asking where AI genuinely removes
+          manual work for an engagement manager — not where it&apos;s a
+          gimmick. Every feature below is one real LLM call, routed through
+          OpenRouter so the model is a config change, not a code change (see{" "}
+          <code>lib/ai.ts</code>), stays fully wired but inert without{" "}
+          <code>OPENROUTER_API_KEY</code> configured (mirrors the email-push
+          pattern in <code>lib/notify.ts</code>), and is capped by a
+          per-engagement rate limit (<code>lib/rateLimit.ts</code>) since this
+          demo has no login to gate abuse behind.
+        </p>
+        <dl className="kv-list">
+          <div className="kv-row">
+            <dt>Ask Portside — RLS-scoped Q&amp;A</dt>
+            <dd>
+              <code>askPortsideAction</code> · every tier
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>AI status-digest generator</dt>
+            <dd>
+              <code>app/components/StatusDigest.tsx</code> · EM drafts, reviews,
+              then posts
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Deterministic risk flagging + AI &quot;why&quot;</dt>
+            <dd>
+              <code>lib/risk.ts</code> (no AI needed) +{" "}
+              <code>app/components/RiskPanel.tsx</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Meeting notes → structured action items</dt>
+            <dd>
+              <code>app/components/MeetingNotesExtractor.tsx</code> · EM
+              approves before anything is written
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Per-document AI summarize</dt>
+            <dd>
+              <code>summarizeDocumentAction</code> · PDF text extraction
+              (<code>lib/pdf.ts</code>) + native image input
             </dd>
           </div>
         </dl>

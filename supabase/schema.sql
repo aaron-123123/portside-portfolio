@@ -148,14 +148,19 @@ create index if not exists time_entries_engagement_idx
   on public.time_entries(engagement_id);
 
 -- Client-facing status feed. Rows are appended automatically by the server when
--- client-relevant things happen (a milestone completes, a document is shared).
+-- client-relevant things happen (a milestone completes, a document is shared),
+-- or authored by the EM (an AI-drafted status digest, reviewed before posting).
 create table if not exists public.updates (
   id            uuid primary key default gen_random_uuid(),
   engagement_id uuid not null references public.engagements(id) on delete cascade,
-  kind          text not null check (kind in ('milestone', 'document', 'approval', 'pulse')),
+  kind          text not null check (kind in ('milestone', 'document', 'approval', 'pulse', 'status')),
   summary       text not null,
   created_at    timestamptz not null default now()
 );
+
+alter table public.updates drop constraint if exists updates_kind_check;
+alter table public.updates add constraint updates_kind_check
+  check (kind in ('milestone', 'document', 'approval', 'pulse', 'status'));
 
 -- One comment thread per document (not general chat) — scoped narrowly on
 -- purpose. Visible to whoever can already see the document; the sponsor
@@ -177,11 +182,72 @@ create table if not exists public.audit_log (
   id            uuid primary key default gen_random_uuid(),
   engagement_id uuid not null references public.engagements(id) on delete cascade,
   document_id   uuid references public.documents(id) on delete set null,
-  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created')),
+  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created', 'ai')),
   actor_role    text not null check (actor_role in ('em', 'client_contact', 'client_exec')),
   detail        text not null,
   created_at    timestamptz not null default now()
 );
+
+-- ---------------------------------------------------------------------------
+-- AI features
+-- ---------------------------------------------------------------------------
+
+-- "Ask Portside" — a question/answer log. The flagship AI feature: each
+-- answer is generated server-side from ONLY the data queryAsRole(asked_by_role,
+-- …) would return to that role (see lib/data.ts helpers), so the access
+-- boundary that already governs pages and downloads governs the AI layer too.
+-- A sponsor's answer literally cannot mention a private document, because the
+-- sponsor's own data fetch never received one.
+create table if not exists public.ai_answers (
+  id            uuid primary key default gen_random_uuid(),
+  engagement_id uuid not null references public.engagements(id) on delete cascade,
+  asked_by_role text not null check (asked_by_role in ('em', 'client_contact', 'client_exec')),
+  question      text not null,
+  answer        text not null,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists ai_answers_engagement_idx
+  on public.ai_answers(engagement_id, created_at desc);
+
+-- Per-document AI summaries reuse this same table (a summary is just another
+-- role-scoped answer) so they inherit the identical RLS boundary — displayed
+-- inline on the document row rather than in the general Q&A list.
+alter table public.ai_answers add column if not exists document_id uuid
+  references public.documents(id) on delete cascade;
+
+create index if not exists ai_answers_document_idx
+  on public.ai_answers(document_id) where document_id is not null;
+
+-- AI-generated drafts an EM reviews before they take effect: a status-update
+-- paragraph, a risk-flag explanation, or action items extracted from pasted
+-- meeting notes. EM-only, same boundary as time_entries — nothing here is
+-- client-visible until the EM explicitly publishes it (e.g. to `updates`).
+create table if not exists public.ai_drafts (
+  id              uuid primary key default gen_random_uuid(),
+  engagement_id   uuid not null references public.engagements(id) on delete cascade,
+  kind            text not null check (kind in ('status_digest', 'risk_flags', 'action_items')),
+  content         jsonb not null,
+  created_by_role text not null check (created_by_role in ('em', 'client_contact', 'client_exec')),
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists ai_drafts_engagement_idx
+  on public.ai_drafts(engagement_id, kind, created_at desc);
+
+-- Coarse per-engagement AI usage counter, so a single engagement (or an
+-- anonymous visitor hammering the public demo) cannot run up unbounded model
+-- spend. Written by the server's admin connection regardless of viewer role,
+-- same as audit_log — internal only, not a feature any role reads directly.
+create table if not exists public.ai_usage_log (
+  id            uuid primary key default gen_random_uuid(),
+  engagement_id uuid not null references public.engagements(id) on delete cascade,
+  feature       text not null,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists ai_usage_engagement_idx
+  on public.ai_usage_log(engagement_id, created_at);
 
 create index if not exists documents_engagement_idx  on public.documents(engagement_id);
 create index if not exists milestones_engagement_idx on public.milestones(engagement_id);
@@ -194,7 +260,7 @@ create index if not exists audit_engagement_idx      on public.audit_log(engagem
 -- action items, pulse, and the split client roles existed (idempotent).
 alter table public.audit_log drop constraint if exists audit_log_event_check;
 alter table public.audit_log add constraint audit_log_event_check
-  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created'));
+  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created', 'ai'));
 
 alter table public.audit_log drop constraint if exists audit_log_actor_role_check;
 alter table public.audit_log add constraint audit_log_actor_role_check
@@ -236,6 +302,12 @@ grant select, insert, update on public.check_ins    to authenticated;
 grant select                 on public.updates      to authenticated;
 grant select                 on public.audit_log    to authenticated;
 grant select, insert         on public.document_comments to authenticated;
+grant select, insert         on public.ai_answers to authenticated;
+grant select, insert         on public.ai_drafts to authenticated;
+-- Writes go through the admin connection only (see lib/rateLimit.ts), but
+-- grant select so the EM-only RLS policy below actually holds if this table
+-- is ever read through the role-scoped connection too.
+grant select                 on public.ai_usage_log to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security
@@ -438,6 +510,66 @@ create policy time_entries_insert on public.time_entries
   with check (public.app_role() = 'em');
 
 grant select, insert on public.time_entries to authenticated;
+
+-- AI answers: EM sees every question asked, at every tier (matches EM's
+-- full-workspace visibility elsewhere). Each client tier sees only questions
+-- asked under its OWN role — this is the same-question-different-answer
+-- boundary the feature demonstrates, not just an access nicety.
+alter table public.ai_answers enable row level security;
+
+drop policy if exists ai_answers_select on public.ai_answers;
+create policy ai_answers_select on public.ai_answers
+  for select to authenticated
+  using (public.app_role() = 'em' or asked_by_role = public.app_role());
+
+-- document_id is a denormalized reference (asked_by_role alone doesn't imply
+-- document visibility) — require it to actually match a document this role
+-- can see, the same lesson as document_comments_insert above. Without this, a
+-- tampered request could attach a fabricated "summary" to a private
+-- document's id under a client role's own (otherwise-correctly-scoped) row.
+drop policy if exists ai_answers_insert on public.ai_answers;
+create policy ai_answers_insert on public.ai_answers
+  for insert to authenticated
+  with check (
+    asked_by_role = public.app_role()
+    and (
+      document_id is null
+      or exists (
+        select 1 from public.documents d
+         where d.id = document_id
+           and d.engagement_id = ai_answers.engagement_id
+           and (
+             public.app_role() = 'em'
+             or (d.visibility = 'shared' and public.app_role() = 'client_contact')
+           )
+      )
+    )
+  );
+
+-- AI drafts: EM-only, same boundary as time_entries / audit_log. A draft
+-- (an ungenerated status paragraph, unexplained risk flag, or unreviewed
+-- extracted action item) is never client-visible.
+alter table public.ai_drafts enable row level security;
+
+drop policy if exists ai_drafts_select on public.ai_drafts;
+create policy ai_drafts_select on public.ai_drafts
+  for select to authenticated
+  using (public.app_role() = 'em');
+
+drop policy if exists ai_drafts_insert on public.ai_drafts;
+create policy ai_drafts_insert on public.ai_drafts
+  for insert to authenticated
+  with check (public.app_role() = 'em');
+
+-- AI usage log: internal rate-limit counter, written by the admin connection
+-- regardless of role (mirrors audit_log). EM-only read, in case it's ever
+-- queried through the role-scoped connection.
+alter table public.ai_usage_log enable row level security;
+
+drop policy if exists ai_usage_log_select on public.ai_usage_log;
+create policy ai_usage_log_select on public.ai_usage_log
+  for select to authenticated
+  using (public.app_role() = 'em');
 
 -- ---------------------------------------------------------------------------
 -- Storage: one PRIVATE bucket. Files are reached only through short-lived

@@ -7,9 +7,35 @@ import { queryAsRole } from "@/lib/db";
 import { serviceClient, STORAGE_BUCKET } from "@/lib/supabase";
 import { writeAudit } from "@/lib/audit";
 import { notifyClient } from "@/lib/notify";
-import type { Role, Visibility } from "@/lib/types";
+import { generateText } from "@/lib/ai";
+import { extractPdfText } from "@/lib/pdf";
+import { checkAiRateLimit } from "@/lib/rateLimit";
+import { computeRiskSignals } from "@/lib/risk";
+import {
+  getActionItems,
+  getCheckIns,
+  getDocuments,
+  getEngagement,
+  getMilestones,
+  getUpdates,
+} from "@/lib/data";
+import type {
+  ActionItemsDraftContent,
+  ExtractedActionItem,
+  OwnerSide,
+  RiskFlagsDraftContent,
+  Role,
+  Visibility,
+} from "@/lib/types";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_SUMMARIZE_BYTES = 15 * 1024 * 1024; // 15 MB — base64 + request overhead stays well under Claude's request limit
+
+const ROLE_LABEL: Record<Role, string> = {
+  em: "the delivery team (internal EM view)",
+  client_contact: "the client project lead",
+  client_exec: "the client sponsor (summary-only view, no document access)",
+};
 
 /** Switch the viewer between EM, client sponsor, and client project lead. */
 export async function setRoleAction(formData: FormData): Promise<void> {
@@ -686,6 +712,514 @@ export async function submitPulseAction(formData: FormData): Promise<void> {
     event: "pulse",
     actorRole: role,
     detail: `${submittedBy} submitted a pulse: ${score}/5`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// AI features
+//
+// Every action below runs the SAME role-scoped data helpers the page itself
+// uses (lib/data.ts), so whatever context Claude receives has already been
+// filtered by Row Level Security — the access boundary extends to the AI
+// layer, not just page rendering. See lib/ai.ts for the model wrapper and
+// lib/rateLimit.ts for the public-demo usage cap.
+// ---------------------------------------------------------------------------
+
+/** Any role: ask a question about the engagement, answered only from what that role can see. */
+export async function askPortsideAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const question = String(formData.get("question") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (!question) throw new Error("Please enter a question.");
+  if (question.length > 500) {
+    throw new Error("Question is too long (500 characters max).");
+  }
+
+  await checkAiRateLimit(engagementId, "ask");
+
+  const [engagement, milestones, actionItems, checkIns, updates] = await Promise.all([
+    getEngagement(engagementId),
+    getMilestones(engagementId),
+    getActionItems(engagementId),
+    getCheckIns(engagementId),
+    getUpdates(engagementId, 20),
+  ]);
+  // Sponsor tier gets no documents — enforced by RLS elsewhere; mirror that
+  // here by simply not querying, same as the engagement page does.
+  const documents =
+    role === "em" || role === "client_contact" ? await getDocuments(engagementId) : [];
+
+  const context = {
+    engagement: engagement && { client_name: engagement.client_name, status: engagement.status },
+    milestones: milestones.map((m) => ({
+      title: m.title,
+      detail: m.detail,
+      status: m.status,
+      target_date: m.target_date,
+      assignee: m.assignee,
+    })),
+    action_items: actionItems.map((a) => ({
+      title: a.title,
+      owner_side: a.owner_side,
+      status: a.status,
+      due_date: a.due_date,
+      assignee: a.assignee,
+    })),
+    pulse_checks: checkIns
+      .filter((c) => c.status === "submitted")
+      .map((c) => ({ prompt: c.prompt, score: c.score, comment: c.comment })),
+    recent_updates: updates.map((u) => ({ summary: u.summary, created_at: u.created_at })),
+    documents: documents.map((d) => ({
+      name: d.name,
+      visibility: d.visibility,
+      version: d.version,
+      approved: d.approvals?.[0]?.status === "approved",
+    })),
+  };
+
+  const answer = await generateText({
+    system:
+      `You are "Ask Portside", an assistant embedded in a professional-services client-delivery portal. ` +
+      `You are answering as if speaking to ${ROLE_LABEL[role]}. ` +
+      `Answer ONLY using the JSON data provided in the user message — it has already been filtered to exactly ` +
+      `what this viewer's role is allowed to see under this app's real access-control policy, not as a formatting choice. ` +
+      `If the answer isn't present in the data, say so plainly rather than guessing. Never invent milestones, ` +
+      `documents, dates, names, or scores. Keep the answer to 2-4 sentences unless the question needs a short list. ` +
+      `Plain prose, no markdown headers.`,
+    content: [{ type: "text", text: `Question: ${question}\n\nData:\n${JSON.stringify(context)}` }],
+    maxTokens: 500,
+  });
+
+  const rows = await queryAsRole<{ id: string }>(
+    role,
+    `insert into ai_answers (engagement_id, asked_by_role, question, answer)
+     values ($1, $2, $3, $4)
+     returning id`,
+    [engagementId, role, question, answer],
+  );
+  if (!rows[0]) throw new Error("Could not save the answer.");
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "ai",
+    actorRole: role,
+    detail: `Asked Portside: "${question.length > 80 ? `${question.slice(0, 80)}…` : question}"`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// AI status-digest generator (EM only)
+// ---------------------------------------------------------------------------
+
+/** EM-only: draft a client-ready status update from current engagement data. */
+export async function generateStatusDigestAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can generate a status digest.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  if (!engagementId) throw new Error("Missing engagement.");
+
+  await checkAiRateLimit(engagementId, "status_digest");
+
+  const [engagement, milestones, actionItems, checkIns, updates] = await Promise.all([
+    getEngagement(engagementId),
+    getMilestones(engagementId),
+    getActionItems(engagementId),
+    getCheckIns(engagementId),
+    getUpdates(engagementId, 10),
+  ]);
+
+  const context = {
+    client_name: engagement?.client_name,
+    milestones: milestones.map((m) => ({ title: m.title, status: m.status, target_date: m.target_date })),
+    open_action_items: actionItems.filter((a) => a.status === "open").length,
+    recent_pulse: checkIns.find((c) => c.status === "submitted")?.score ?? null,
+    recent_updates: updates.map((u) => u.summary),
+  };
+
+  const text = await generateText({
+    system:
+      "Draft a short, client-ready status update paragraph (3-5 sentences) for a professional-services " +
+      "engagement, based only on the JSON data provided. Plain prose, no markdown, no headers, ready to paste " +
+      "directly into a client-facing status feed. Do not invent facts not present in the data.",
+    content: [{ type: "text", text: JSON.stringify(context) }],
+    maxTokens: 400,
+  });
+
+  await queryAsRole(
+    "em",
+    `insert into ai_drafts (engagement_id, kind, content, created_by_role)
+     values ($1, 'status_digest', $2::jsonb, 'em')`,
+    [engagementId, JSON.stringify({ text })],
+  );
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "ai",
+    actorRole: role,
+    detail: "Generated an AI status-digest draft",
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+/** EM-only: post the (possibly edited) status digest to the client Updates feed. */
+export async function publishStatusDigestAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can post a status update.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const text = String(formData.get("text") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (!text) throw new Error("The status update cannot be empty.");
+
+  await notifyClient({ engagementId, kind: "status", summary: text });
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "ai",
+    actorRole: role,
+    detail: "Posted an AI-drafted status update to the client feed",
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// AI risk flagging (EM only) — signal DETECTION is deterministic (lib/risk.ts,
+// runs with no AI key needed); this action only adds a one-line AI "why".
+// ---------------------------------------------------------------------------
+
+const RISK_NOTES_SCHEMA = {
+  type: "object",
+  properties: {
+    notes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ref: { type: "string" },
+          note: { type: "string" },
+        },
+        required: ["ref", "note"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["notes"],
+  additionalProperties: false,
+} as const;
+
+/** EM-only: phrase a one-line "why it matters" note for each detected risk signal. */
+export async function analyzeRisksAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can run risk analysis.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  if (!engagementId) throw new Error("Missing engagement.");
+
+  const [milestones, actionItems, checkIns] = await Promise.all([
+    getMilestones(engagementId),
+    getActionItems(engagementId),
+    getCheckIns(engagementId),
+  ]);
+  const signals = computeRiskSignals(milestones, actionItems, checkIns);
+  if (signals.length === 0) {
+    throw new Error("No risk signals detected right now — nothing to analyze.");
+  }
+
+  await checkAiRateLimit(engagementId, "risk_flags");
+
+  const text = await generateText({
+    system:
+      "For each risk signal below, write ONE short sentence (under 20 words) explaining why it matters to the " +
+      "delivery team, in plain, direct language. Return JSON matching the schema exactly — one note per ref, " +
+      "same refs as given, no extra commentary.",
+    content: [{ type: "text", text: JSON.stringify(signals) }],
+    maxTokens: 600,
+    jsonSchema: { name: "risk_notes", schema: RISK_NOTES_SCHEMA },
+  });
+
+  let parsed: RiskFlagsDraftContent;
+  try {
+    parsed = JSON.parse(text) as RiskFlagsDraftContent;
+  } catch {
+    throw new Error("AI returned an unreadable response — please try again.");
+  }
+
+  await queryAsRole(
+    "em",
+    `insert into ai_drafts (engagement_id, kind, content, created_by_role)
+     values ($1, 'risk_flags', $2::jsonb, 'em')`,
+    [engagementId, JSON.stringify(parsed)],
+  );
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "ai",
+    actorRole: role,
+    detail: `Explained ${signals.length} risk signal(s) with AI`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Meeting notes → structured action items (EM only)
+// ---------------------------------------------------------------------------
+
+const ACTION_ITEMS_SCHEMA = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          assignee: { anyOf: [{ type: "string" }, { type: "null" }] },
+          due_date: { anyOf: [{ type: "string" }, { type: "null" }] },
+          owner_side: { type: "string", enum: ["team", "client"] },
+        },
+        required: ["title", "assignee", "due_date", "owner_side"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["items"],
+  additionalProperties: false,
+} as const;
+
+/** EM-only: draft structured action items extracted from pasted meeting notes. */
+export async function extractActionItemsAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can extract action items.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (!notes) throw new Error("Paste some meeting notes first.");
+  if (notes.length > 8000) {
+    throw new Error("Notes are too long (8,000 characters max) — try a shorter excerpt.");
+  }
+
+  await checkAiRateLimit(engagementId, "extract_actions");
+
+  const text = await generateText({
+    system:
+      "Extract discrete action items from these raw meeting notes. Only include concrete, actionable tasks — " +
+      "not general discussion or decisions already made. For each: a short title; an assignee name only if a " +
+      "specific person is clearly mentioned (otherwise null); a due_date in YYYY-MM-DD format only if a specific " +
+      "date is clearly mentioned (otherwise null); and owner_side — 'client' if the task is the client's " +
+      "responsibility, 'team' otherwise. If you find no actionable items, return an empty items array. Never " +
+      "invent a task, name, or date that isn't in the notes.",
+    content: [{ type: "text", text: notes }],
+    maxTokens: 1200,
+    jsonSchema: { name: "action_items", schema: ACTION_ITEMS_SCHEMA },
+  });
+
+  let parsed: ActionItemsDraftContent;
+  try {
+    parsed = JSON.parse(text) as ActionItemsDraftContent;
+  } catch {
+    throw new Error("AI returned an unreadable response — please try again.");
+  }
+  parsed.items = parsed.items.slice(0, 20); // defensive cap
+
+  await queryAsRole(
+    "em",
+    `insert into ai_drafts (engagement_id, kind, content, created_by_role)
+     values ($1, 'action_items', $2::jsonb, 'em')`,
+    [engagementId, JSON.stringify(parsed)],
+  );
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "ai",
+    actorRole: role,
+    detail: `Extracted ${parsed.items.length} action item(s) from pasted meeting notes`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** EM-only: create real action items from the selected rows of an extraction draft. */
+export async function addExtractedActionItemsAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can add action items.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const draftId = String(formData.get("draftId") ?? "");
+  if (!engagementId || !draftId) throw new Error("Missing draft.");
+
+  const selected = new Set(formData.getAll("include").map(String));
+  if (selected.size === 0) {
+    throw new Error("Select at least one item to add.");
+  }
+
+  // Re-read the draft from the database rather than trusting resubmitted form
+  // content — the draft row is the trusted source, the checkboxes just pick indices.
+  const rows = await queryAsRole<{ content: ActionItemsDraftContent }>(
+    "em",
+    "select content from ai_drafts where id = $1 and kind = 'action_items' and engagement_id = $2",
+    [draftId, engagementId],
+  );
+  const draft = rows[0];
+  if (!draft) throw new Error("Draft not found.");
+
+  const items: ExtractedActionItem[] = draft.content.items ?? [];
+  let added = 0;
+  for (const [index, item] of items.entries()) {
+    if (!selected.has(String(index))) continue;
+    const title = item.title?.trim();
+    if (!title) continue;
+    const ownerSide: OwnerSide = item.owner_side === "client" ? "client" : "team";
+    const dueDate = item.due_date && DATE_RE.test(item.due_date) ? item.due_date : null;
+    const assignee = ownerSide === "team" && item.assignee ? item.assignee.trim() || null : null;
+
+    await queryAsRole(
+      "em",
+      `insert into action_items (engagement_id, title, owner_side, due_date, assignee)
+       values ($1, $2, $3, $4, $5)`,
+      [engagementId, title, ownerSide, dueDate, assignee],
+    );
+    added += 1;
+  }
+
+  if (added === 0) throw new Error("No valid items were selected.");
+
+  await writeAudit({
+    engagementId,
+    documentId: null,
+    event: "action_item",
+    actorRole: role,
+    detail: `Added ${added} action item(s) extracted from meeting notes`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Per-document AI summarize
+// ---------------------------------------------------------------------------
+
+// "pdf" is handled separately (text-extracted via lib/pdf.ts) rather than
+// sent as raw bytes — native PDF understanding isn't a guaranteed
+// OpenRouter/OpenAI-compatible capability across arbitrary models.
+const SUMMARIZABLE_EXTENSIONS: Record<string, "pdf" | "image" | "text"> = {
+  pdf: "pdf",
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  webp: "image",
+  txt: "text",
+  md: "text",
+  csv: "text",
+  json: "text",
+};
+
+const MEDIA_TYPE: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+};
+
+/** Any role that can already see the document: summarize its contents with AI. */
+export async function summarizeDocumentAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  const documentId = String(formData.get("documentId") ?? "");
+  const engagementId = String(formData.get("engagementId") ?? "");
+  if (!documentId || !engagementId) throw new Error("Missing document.");
+
+  // Re-check visibility AS the role, exactly like the download route — RLS
+  // decides, not the UI. A private document is simply not found here for a
+  // client role, so summarization never sees its bytes. Also require the
+  // document to actually belong to the claimed engagementId (mirrors
+  // addExtractedActionItemsAction) — otherwise a caller could spread AI
+  // calls across engagements' rate-limit buckets by citing a real document
+  // alongside an unrelated engagementId.
+  const docRows = await queryAsRole<{ name: string; storage_path: string }>(
+    role,
+    "select name, storage_path from documents where id = $1 and engagement_id = $2",
+    [documentId, engagementId],
+  );
+  const doc = docRows[0];
+  if (!doc) throw new Error("This document is not available to your current view.");
+
+  const ext = doc.name.split(".").pop()?.toLowerCase() ?? "";
+  const kind = SUMMARIZABLE_EXTENSIONS[ext];
+  if (!kind) {
+    throw new Error(
+      "This file type isn't supported for AI summarization yet — try a PDF, image, or plain text file.",
+    );
+  }
+
+  await checkAiRateLimit(engagementId, "summarize");
+
+  const download = await serviceClient().storage.from(STORAGE_BUCKET).download(doc.storage_path);
+  if (download.error || !download.data) {
+    throw new Error("Could not read the file to summarize it.");
+  }
+  if (download.data.size > MAX_SUMMARIZE_BYTES) {
+    throw new Error("File is too large to summarize (15 MB max).");
+  }
+
+  const buffer = Buffer.from(await download.data.arrayBuffer());
+  const system =
+    "Summarize this document in 3-5 sentences for someone working a professional-services client engagement. " +
+    "Be factual and concise. If the document is empty, unreadable, or not meaningfully summarizable, say so plainly.";
+
+  let answer: string;
+  if (kind === "image") {
+    answer = await generateText({
+      system,
+      content: [
+        { type: "image", media_type: MEDIA_TYPE[ext], base64: buffer.toString("base64") },
+        { type: "text", text: "Summarize this document." },
+      ],
+      maxTokens: 400,
+    });
+  } else {
+    const text =
+      kind === "pdf" ? await extractPdfText(buffer) : buffer.toString("utf-8");
+    if (!text.trim()) {
+      throw new Error("Couldn't extract any text from this file to summarize.");
+    }
+    answer = await generateText({
+      system,
+      content: [{ type: "text", text: `Document "${doc.name}":\n\n${text}` }],
+      maxTokens: 400,
+    });
+  }
+
+  await queryAsRole(
+    role,
+    `insert into ai_answers (engagement_id, document_id, asked_by_role, question, answer)
+     values ($1, $2, $3, $4, $5)`,
+    [engagementId, documentId, role, `Summarize "${doc.name}"`, answer],
+  );
+
+  await writeAudit({
+    engagementId,
+    documentId,
+    event: "ai",
+    actorRole: role,
+    detail: `Summarized "${doc.name}" with AI`,
   });
 
   revalidatePath(`/engagement/${engagementId}`);

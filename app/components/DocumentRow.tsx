@@ -2,11 +2,13 @@ import {
   approveDocumentAction,
   requestApprovalAction,
   setVisibilityAction,
+  summarizeDocumentAction,
 } from "@/app/actions";
 import { SubmitButton } from "@/app/components/SubmitButton";
 import { DocumentComments } from "@/app/components/DocumentComments";
 import { getDocumentVersions } from "@/lib/data";
 import { formatTimestamp } from "@/lib/format";
+import { isAiConfigured } from "@/lib/ai";
 import type { DocumentRecord, Role } from "@/lib/types";
 
 export async function DocumentRow({
@@ -107,7 +109,27 @@ export async function DocumentRow({
             </SubmitButton>
           </form>
         )}
+
+        {/* Any role that can already see this row: summarize it with AI. */}
+        {isAiConfigured() && (
+          <form action={summarizeDocumentAction} className="inline-form">
+            <input type="hidden" name="documentId" value={doc.id} />
+            <input type="hidden" name="engagementId" value={engagementId} />
+            <SubmitButton className="btn" pendingText="Summarizing…">
+              {doc.ai_summary ? "Re-summarize" : "Summarize"}
+            </SubmitButton>
+          </form>
+        )}
       </div>
+
+      {doc.ai_summary && (
+        <div className="qa-list" style={{ marginTop: 10 }}>
+          <div className="qa-item">
+            <p className="qa-question">AI summary</p>
+            <p className="qa-answer">{doc.ai_summary}</p>
+          </div>
+        </div>
+      )}
 
       {doc.visibility === "shared" &&
         (role === "em" || role === "client_contact") && (

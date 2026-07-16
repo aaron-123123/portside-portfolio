@@ -56,6 +56,18 @@ of everything that happens.
   a button or status chip, so it can't compete with coral's reserved meaning.
 - **Roster search** — a client-name filter appears once there are enough
   engagements to need one.
+- **AI features** — a second research pass, this time asking where AI
+  genuinely removes manual EM work rather than decorating the product: **Ask
+  Portside** (a Q&A assistant answered ONLY from data that role's own RLS
+  query returned — see below), an **AI status-digest** draft the EM reviews
+  before posting, deterministic **risk flagging** with an optional AI
+  one-line "why", **meeting-notes → action items** extraction (EM approves
+  before anything is written), and per-document **AI summarize** (PDF text
+  extraction + native image input). Every feature is one real LLM call,
+  routed through OpenRouter so the model is a config change, not a code
+  change; wired but inert without `OPENROUTER_API_KEY`, and capped by a
+  per-engagement rate limit since this demo has no login to gate abuse
+  behind.
 - **Audit log** — every event, timestamped, internal to the delivery team.
 - **["How this works"](https://portside-portfolio.vercel.app/how-it-works)** —
   an in-app page walking through the access-control architecture below, so the
@@ -118,6 +130,20 @@ boundary, the build goes red before it ships.
 | Automated proof of the boundary, run in CI | `tests/rls.test.mts` |
 
 ---
+
+## Ask Portside: the access boundary extends to AI
+
+Most delivery tools with an AI assistant don't say how it interacts with
+their access control. Portside's answer: the same way everything else does.
+`askPortsideAction` (`app/actions.ts`) answers a question by calling the
+exact same role-scoped helpers (`lib/data.ts`) the engagement page itself
+renders from — RLS has already filtered what those helpers return, before
+the model ever sees it. A sponsor asking about documents gets an honest "none
+visible to your view," not because a prompt says not to mention them, but
+because `getDocuments()` is never even called for that role. The `ai_answers`
+table carries its own RLS policy on top: a client tier reads only questions
+asked under its own role; the EM reads every tier's history — covered by
+`tests/rls.test.mts`, the same file that proves the document boundary.
 
 ## The audit log: append-only and internal
 

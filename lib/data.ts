@@ -3,6 +3,9 @@ import { getRole } from "./session";
 import { deriveStatus, type EngagementStatus } from "./status";
 import type {
   ActionItem,
+  AiAnswer,
+  AiDraft,
+  AiDraftKind,
   AuditRow,
   CheckIn,
   DocumentRecord,
@@ -65,7 +68,10 @@ export async function getDocuments(
                  from document_comments c
                 where c.document_id = d.id),
               '[]'
-            ) as comments
+            ) as comments,
+            (select answer from ai_answers
+              where document_id = d.id
+              order by created_at desc limit 1) as ai_summary
        from documents d
       where d.engagement_id = $1
         and d.version = (
@@ -297,6 +303,43 @@ export async function getWorkloadOverview(): Promise<AssigneeWorkload[]> {
   return Array.from(byAssignee.values()).sort(
     (a, b) => b.openCount - a.openCount,
   );
+}
+
+/**
+ * "Ask Portside" history for the current viewer's own role, newest first.
+ * RLS restricts this to the caller's own asked_by_role (EM sees every role's
+ * questions) — see ai_answers_select in supabase/schema.sql.
+ */
+export async function getAiAnswers(
+  engagementId: string,
+  limit = 10,
+): Promise<AiAnswer[]> {
+  const role = await getRole();
+  // document_id is null here — per-document summaries are shown inline on
+  // the document row instead (see getDocuments' ai_summary subquery).
+  return queryAsRole<AiAnswer>(
+    role,
+    `select * from ai_answers
+      where engagement_id = $1 and document_id is null
+      order by created_at desc limit $2`,
+    [engagementId, limit],
+  );
+}
+
+/** Latest AI draft of a given kind for an engagement. EM-only (RLS-enforced). */
+export async function getLatestAiDraft(
+  engagementId: string,
+  kind: AiDraftKind,
+): Promise<AiDraft | null> {
+  const role = await getRole();
+  const rows = await queryAsRole<AiDraft>(
+    role,
+    `select * from ai_drafts
+      where engagement_id = $1 and kind = $2
+      order by created_at desc limit 1`,
+    [engagementId, kind],
+  );
+  return rows[0] ?? null;
 }
 
 /** Count documents per engagement for the roster, respecting RLS. */

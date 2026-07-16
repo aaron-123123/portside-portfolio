@@ -547,6 +547,49 @@ code {
   flex: 1 1 260px;
 }
 
+/* ---------- Ask Portside (Q&A) ---------- */
+/* Same visual weight as .comments — a neutral left border, not coral.
+   Coral is reserved for a genuine decision or blocked state; a repeating
+   list of AI answers is neither, and stacking coral-bordered boxes here
+   would dilute that reserved meaning into decoration. */
+
+.qa-list {
+  margin-top: 8px;
+  border-left: 2px solid var(--line);
+}
+
+.qa-item {
+  padding: 10px 0 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qa-item:last-child {
+  border-bottom: none;
+}
+
+.qa-question {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+
+.qa-answer {
+  font-size: 13px;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.qa-meta {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin-top: 6px;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -635,7 +678,8 @@ code {
 
 input[type="file"],
 input[type="text"],
-select {
+select,
+textarea {
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 9px 10px;
@@ -647,6 +691,11 @@ select {
 
 input[type="text"] {
   min-width: 180px;
+}
+
+textarea {
+  font-family: inherit;
+  resize: vertical;
 }
 
 /* ---------- Activity log ---------- */

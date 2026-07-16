@@ -68,6 +68,7 @@ export interface DocumentRecord {
   version: number;
   approvals?: Approval[];
   comments?: DocumentComment[];
+  ai_summary?: string | null;
 }
 
 export interface DocumentVersion {
@@ -118,7 +119,7 @@ export interface CheckIn {
   created_at: string;
 }
 
-export type UpdateKind = "milestone" | "document" | "approval" | "pulse";
+export type UpdateKind = "milestone" | "document" | "approval" | "pulse" | "status";
 
 export interface Update {
   id: string;
@@ -138,7 +139,8 @@ export type AuditEvent =
   | "pulse"
   | "engagement_status"
   | "comment"
-  | "engagement_created";
+  | "engagement_created"
+  | "ai";
 
 export interface AuditRow {
   id: string;
@@ -148,4 +150,62 @@ export interface AuditRow {
   actor_role: Role;
   detail: string;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// AI features
+// ---------------------------------------------------------------------------
+
+/** One "Ask Portside" question/answer, scoped to the role that asked it. */
+export interface AiAnswer {
+  id: string;
+  engagement_id: string;
+  document_id: string | null;
+  asked_by_role: Role;
+  question: string;
+  answer: string;
+  created_at: string;
+}
+
+export type AiDraftKind = "status_digest" | "risk_flags" | "action_items";
+
+export interface StatusDigestContent {
+  text: string;
+}
+
+export interface ExtractedActionItem {
+  title: string;
+  assignee: string | null;
+  due_date: string | null;
+  owner_side: OwnerSide;
+}
+
+export interface ActionItemsDraftContent {
+  items: ExtractedActionItem[];
+}
+
+export interface RiskFlagNote {
+  ref: string;
+  note: string;
+}
+
+export interface RiskFlagsDraftContent {
+  notes: RiskFlagNote[];
+}
+
+export interface AiDraft {
+  id: string;
+  engagement_id: string;
+  kind: AiDraftKind;
+  content: StatusDigestContent | ActionItemsDraftContent | RiskFlagsDraftContent;
+  created_by_role: Role;
+  created_at: string;
+}
+
+/** A deterministically-detected risk signal — no AI involved in detection. */
+export interface RiskSignal {
+  ref: string;
+  kind: "overdue_milestone" | "blocked_milestone" | "overdue_action" | "low_pulse";
+  title: string;
+  detail: string;
 }

@@ -65,8 +65,39 @@ shared, versioned — see below) · `document_comments` (one thread per *shared*
 document — RLS mirrors `documents_select` exactly) · `approvals` · `milestones`
 · `action_items` (both have a free-text `assignee`, only meaningful when
 `owner_side = 'team'`) · `check_ins` (pulse/CSAT) · `updates` (client status
-feed) · `time_entries` (internal only — same RLS boundary as `audit_log`) ·
-`audit_log`. RLS policies key on `public.app_role()` and `public.is_client()`.
+feed, `kind` includes `'status'` for AI-drafted posts) · `time_entries`
+(internal only — same RLS boundary as `audit_log`) · `audit_log` (`event`
+includes `'ai'`) · `ai_answers` (Ask Portside Q&A — see below) · `ai_drafts`
+(EM-only staging for status digests / risk-flag notes / extracted action
+items, `content` is `jsonb`) · `ai_usage_log` (per-engagement AI rate-limit
+counter, admin-write only, same pattern as `audit_log`). RLS policies key on
+`public.app_role()` and `public.is_client()`.
+
+### AI features (`lib/ai.ts`, `lib/pdf.ts`, `lib/rateLimit.ts`, `lib/risk.ts`)
+
+Every AI action reuses the SAME role-scoped `lib/data.ts` helpers the page
+renders from, so whatever context reaches the model has already been
+filtered by RLS — this is the whole point of "Ask Portside" (see the README
+section of the same name). `lib/ai.ts` wraps the `openai` SDK pointed at
+OpenRouter's endpoint (an OpenAI-compatible gateway, not any one provider
+directly) — model is `deepseek/deepseek-v3.2` by default, override with
+`OPENROUTER_MODEL` to any OpenRouter model slug (e.g.
+`anthropic/claude-3.5-haiku`) without touching code. `isAiConfigured()`
+mirrors `isEmailPushConfigured()` in `lib/notify.ts` — every AI panel stays
+visible but inert without `OPENROUTER_API_KEY`, never errors. PDFs are
+text-extracted via `lib/pdf.ts` (`pdf-parse`) rather than sent as raw bytes,
+since native PDF understanding isn't a guaranteed capability across
+arbitrary OpenRouter models — this trades away layout/image understanding
+inside the PDF for working reliably regardless of which model is configured.
+`lib/rateLimit.ts`'s `checkAiRateLimit()` caps calls per engagement
+per hour (20, shared across all 5 features) via `ai_usage_log` — this demo
+has no login, so nothing else stops a visitor from mashing an AI button.
+`lib/risk.ts`'s `computeRiskSignals()` is pure/deterministic (no AI, no DB,
+no cost) — the AI layer only adds an optional one-line "why" on top, via
+`analyzeRisksAction`. `ai_answers.document_id` (nullable) is a denormalized
+reference — like `document_comments.engagement_id`, its RLS insert policy
+cross-checks it actually matches a document the asking role can see (same
+lesson as the gotcha below).
 
 **Document versioning:** `documents.family_id` + `.version` — all versions of
 "the same" document share `family_id` (an independently generated UUID, not
@@ -97,6 +128,15 @@ its own sign-off, which is correct, not a gap.
 | Error / not-found boundaries | `app/error.tsx`, `app/not-found.tsx` |
 | Cross-engagement workload rollup (by assignee) | `app/components/WorkloadOverview.tsx` |
 | Time & budget (EM-only, internal) | `app/components/TimeBudget.tsx` |
+| LLM wrapper (OpenRouter, model, config check) | `lib/ai.ts` |
+| PDF text extraction | `lib/pdf.ts` |
+| Per-engagement AI rate limit | `lib/rateLimit.ts` |
+| Deterministic risk-signal detection | `lib/risk.ts` |
+| Ask Portside (RLS-scoped Q&A, every tier) | `app/components/AskPortside.tsx`, `askPortsideAction` |
+| AI status digest (EM drafts, reviews, posts) | `app/components/StatusDigest.tsx` |
+| Risk panel (deterministic + optional AI note) | `app/components/RiskPanel.tsx` |
+| Meeting notes → action items | `app/components/MeetingNotesExtractor.tsx` |
+| Per-document AI summarize | `summarizeDocumentAction` in `app/actions.ts` |
 | Automated RLS boundary test | `tests/rls.test.mts` |
 | CI | `.github/workflows/ci.yml` |
 | Schema + RLS | `supabase/schema.sql` |
@@ -109,7 +149,10 @@ its own sign-off, which is correct, not a gap.
 (Supabase **transaction pooler** string, port 6543). Optional email push
 (inert unless all set — `lib/notify.ts` `isEmailPushConfigured()` reports the
 state to EM in the Updates panel): `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL`,
-`CLIENT_NOTIFY_EMAIL`. Same three (+ optional) are set in Vercel project settings.
+`CLIENT_NOTIFY_EMAIL`. Optional AI features (inert unless set —
+`lib/ai.ts` `isAiConfigured()`): `OPENROUTER_API_KEY`, and an optional
+`OPENROUTER_MODEL` override (any OpenRouter model slug; defaults to
+`deepseek/deepseek-v3.2`). Same vars are set in Vercel project settings.
 `DATABASE_URL` is *also* set as a GitHub Actions repo secret, so CI can run
 `tests/rls.test.mts` against the real database.
 
