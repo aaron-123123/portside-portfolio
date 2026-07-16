@@ -49,17 +49,23 @@ export async function getDocuments(
   engagementId: string,
 ): Promise<DocumentRecord[]> {
   const role = await getRole();
+  // Correlated subqueries (not a join + group by) so a document's comments
+  // and its approval never fan out and duplicate each other.
   return queryAsRole<DocumentRecord>(
     role,
     `select d.*,
             coalesce(
-              json_agg(a.*) filter (where a.id is not null),
+              (select json_agg(a.*) from approvals a where a.document_id = d.id),
               '[]'
-            ) as approvals
+            ) as approvals,
+            coalesce(
+              (select json_agg(c.* order by c.created_at asc)
+                 from document_comments c
+                where c.document_id = d.id),
+              '[]'
+            ) as comments
        from documents d
-       left join approvals a on a.document_id = d.id
       where d.engagement_id = $1
-      group by d.id
       order by d.created_at desc`,
     [engagementId],
   );

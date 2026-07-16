@@ -103,11 +103,27 @@ create table if not exists public.updates (
   created_at    timestamptz not null default now()
 );
 
+-- One comment thread per document (not general chat) — scoped narrowly on
+-- purpose. Visible to whoever can already see the document; the sponsor
+-- tier sees no documents at all, so it sees no comments either.
+create table if not exists public.document_comments (
+  id            uuid primary key default gen_random_uuid(),
+  document_id   uuid not null references public.documents(id) on delete cascade,
+  engagement_id uuid not null references public.engagements(id) on delete cascade,
+  author_role   text not null check (author_role in ('em', 'client_contact', 'client_exec')),
+  author_name   text not null,
+  body          text not null,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists document_comments_document_idx
+  on public.document_comments(document_id);
+
 create table if not exists public.audit_log (
   id            uuid primary key default gen_random_uuid(),
   engagement_id uuid not null references public.engagements(id) on delete cascade,
   document_id   uuid references public.documents(id) on delete set null,
-  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status')),
+  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment')),
   actor_role    text not null check (actor_role in ('em', 'client_contact', 'client_exec')),
   detail        text not null,
   created_at    timestamptz not null default now()
@@ -124,7 +140,7 @@ create index if not exists audit_engagement_idx      on public.audit_log(engagem
 -- action items, pulse, and the split client roles existed (idempotent).
 alter table public.audit_log drop constraint if exists audit_log_event_check;
 alter table public.audit_log add constraint audit_log_event_check
-  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status'));
+  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment'));
 
 alter table public.audit_log drop constraint if exists audit_log_actor_role_check;
 alter table public.audit_log add constraint audit_log_actor_role_check
@@ -165,6 +181,7 @@ grant select, insert, update on public.action_items to authenticated;
 grant select, insert, update on public.check_ins    to authenticated;
 grant select                 on public.updates      to authenticated;
 grant select                 on public.audit_log    to authenticated;
+grant select, insert         on public.document_comments to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security
@@ -178,6 +195,7 @@ alter table public.action_items enable row level security;
 alter table public.check_ins    enable row level security;
 alter table public.updates      enable row level security;
 alter table public.audit_log    enable row level security;
+alter table public.document_comments enable row level security;
 
 -- Engagements: any signed-in viewer may list them; only EM changes lifecycle status.
 drop policy if exists engagements_select on public.engagements;
@@ -211,6 +229,39 @@ create policy documents_update on public.documents
   for update to authenticated
   using (public.app_role() = 'em')
   with check (public.app_role() = 'em');
+
+-- Document comments: visible/postable only to whoever can already see the
+-- document (em sees all; client_contact only on shared docs). The sponsor
+-- tier sees no documents, so it can neither read nor write here.
+drop policy if exists document_comments_select on public.document_comments;
+create policy document_comments_select on public.document_comments
+  for select to authenticated
+  using (
+    public.app_role() = 'em'
+    or (
+      public.app_role() = 'client_contact'
+      and exists (
+        select 1 from public.documents d
+         where d.id = document_comments.document_id
+           and d.visibility = 'shared'
+      )
+    )
+  );
+
+drop policy if exists document_comments_insert on public.document_comments;
+create policy document_comments_insert on public.document_comments
+  for insert to authenticated
+  with check (
+    public.app_role() = 'em'
+    or (
+      public.app_role() = 'client_contact'
+      and exists (
+        select 1 from public.documents d
+         where d.id = document_comments.document_id
+           and d.visibility = 'shared'
+      )
+    )
+  );
 
 -- Approvals: readable by all; only EM requests; only the project lead grants.
 drop policy if exists approvals_select on public.approvals;

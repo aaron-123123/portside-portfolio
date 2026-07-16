@@ -4,6 +4,7 @@ import {
   setVisibilityAction,
 } from "@/app/actions";
 import { SubmitButton } from "@/app/components/SubmitButton";
+import { DocumentComments } from "@/app/components/DocumentComments";
 import { formatTimestamp } from "@/lib/format";
 import type { DocumentRecord, Role } from "@/lib/types";
 
@@ -91,6 +92,15 @@ export function DocumentRow({
           </form>
         )}
       </div>
+
+      {doc.visibility === "shared" &&
+        (role === "em" || role === "client_contact") && (
+          <DocumentComments
+            documentId={doc.id}
+            engagementId={engagementId}
+            comments={doc.comments ?? []}
+          />
+        )}
     </div>
   );
 }

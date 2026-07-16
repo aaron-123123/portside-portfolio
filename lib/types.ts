@@ -33,6 +33,16 @@ export interface Approval {
   approved_at: string | null;
 }
 
+export interface DocumentComment {
+  id: string;
+  document_id: string;
+  engagement_id: string;
+  author_role: Role;
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
 export interface DocumentRecord {
   id: string;
   engagement_id: string;
@@ -42,6 +52,7 @@ export interface DocumentRecord {
   uploaded_by_role: "em" | "client";
   created_at: string;
   approvals?: Approval[];
+  comments?: DocumentComment[];
 }
 
 export interface Milestone {
@@ -100,7 +111,8 @@ export type AuditEvent =
   | "milestone"
   | "action_item"
   | "pulse"
-  | "engagement_status";
+  | "engagement_status"
+  | "comment";
 
 export interface AuditRow {
   id: string;

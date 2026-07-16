@@ -233,6 +233,55 @@ export async function approveDocumentAction(formData: FormData): Promise<void> {
   revalidatePath(`/engagement/${engagementId}`);
 }
 
+/**
+ * Add a comment to a shared document. One thread per document, not general
+ * chat — deliberately narrow. The sponsor tier can't reach this: it sees no
+ * documents at all, so there's never a document id for it to post against.
+ */
+export async function addDocumentCommentAction(
+  formData: FormData,
+): Promise<void> {
+  const role = await getRole();
+  if (role !== "em" && role !== "client_contact") {
+    throw new Error(
+      "Only the delivery team or the client project lead can comment.",
+    );
+  }
+
+  const documentId = String(formData.get("documentId") ?? "");
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  const rawName = String(formData.get("authorName") ?? "").trim();
+  if (!documentId || !engagementId) throw new Error("Missing document.");
+  if (!body) throw new Error("Comment cannot be empty.");
+
+  const authorName = rawName || (role === "em" ? "Team" : "Client");
+
+  // Insert AS the role, so the RLS insert policy is genuinely exercised —
+  // a client_contact posting against a private document is rejected here,
+  // by the database, not by an earlier if-check.
+  const rows = await queryAsRole<{ id: string }>(
+    role,
+    `insert into document_comments (document_id, engagement_id, author_role, author_name, body)
+     values ($1, $2, $3, $4, $5)
+     returning id`,
+    [documentId, engagementId, role, authorName, body],
+  );
+  if (!rows[0]) {
+    throw new Error("Could not add comment: document not visible to you.");
+  }
+
+  await writeAudit({
+    engagementId,
+    documentId,
+    event: "comment",
+    actorRole: role,
+    detail: `${authorName} commented on a document`,
+  });
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
 // ---------------------------------------------------------------------------
 // Engagement lifecycle (EM only)
 // ---------------------------------------------------------------------------

@@ -469,6 +469,46 @@ code {
   margin-bottom: 0;
 }
 
+/* ---------- Document comments ---------- */
+
+.comments {
+  flex: 1 1 100%;
+  margin-top: 8px;
+  padding-left: 4px;
+  border-left: 2px solid var(--line);
+}
+
+.comment-row {
+  padding: 6px 0 6px 12px;
+  font-size: 13px;
+}
+
+.comment-meta {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin-bottom: 2px;
+}
+
+.comment-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 0 4px 12px;
+}
+
+.comment-name {
+  min-width: 120px;
+  flex: 0 1 140px;
+}
+
+.comment-body-input {
+  flex: 1 1 260px;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
