@@ -158,6 +158,125 @@ const engagements = [
       { kind: "milestone", summary: "Milestone flagged as blocked: Data access & stakeholder mapping" },
     ],
   },
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    client_name: "Woodgrove Bank",
+    docs: [
+      {
+        name: "Data Migration Plan.pdf",
+        visibility: "private",
+        body: ["Internal migration plan and rollback strategy."],
+      },
+      {
+        name: "Security Review Notes.pdf",
+        visibility: "private",
+        body: ["Internal notes from the security review workshop."],
+      },
+      {
+        name: "Integration Runbook v3.pdf",
+        visibility: "shared",
+        approval: "approved",
+        approvedBy: "Morgan Reyes",
+        body: ["Final integration runbook, signed off by the client."],
+      },
+      {
+        name: "Go-Live Readiness Checklist.pdf",
+        visibility: "shared",
+        body: ["Checklist tracked jointly ahead of go-live."],
+      },
+    ],
+    milestones: [
+      { title: "Data migration plan", detail: "Agree migration approach and rollback plan.", target_date: "2026-05-05", status: "done", pulse: { status: "submitted", score: 5, comment: "Very thorough planning.", by: "Morgan Reyes" } },
+      { title: "Security review", detail: "Independent review of the integration's security posture.", target_date: "2026-06-01", status: "done", pulse: { status: "submitted", score: 5, comment: "No major findings.", by: "Morgan Reyes" } },
+      { title: "Integration sign-off", detail: "Client sign-off on the integration runbook.", target_date: "2026-06-25", status: "done" },
+      { title: "Go-live", detail: "Production cutover.", target_date: "2026-07-30", status: "in_progress" },
+    ],
+    actions: [
+      { title: "Confirm go-live change window", owner_side: "client", due_date: "2026-07-24", status: "open" },
+      { title: "Finalise rollback runbook", owner_side: "team", due_date: "2026-06-20", status: "done" },
+    ],
+    updates: [
+      { kind: "milestone", summary: "Milestone completed: Security review" },
+      { kind: "document", summary: "New document shared: Integration Runbook v3.pdf" },
+      { kind: "approval", summary: "Morgan Reyes approved \"Integration Runbook v3.pdf\"" },
+    ],
+  },
+  {
+    id: "55555555-5555-4555-8555-555555555555",
+    client_name: "Tailspin Toys",
+    docs: [
+      {
+        name: "Current State Assessment.pdf",
+        visibility: "private",
+        body: ["Internal assessment of current tooling and process."],
+      },
+      {
+        name: "Engagement Charter.pdf",
+        visibility: "shared",
+        body: ["Scope, roles, and success measures for the engagement."],
+      },
+    ],
+    milestones: [
+      { title: "Kickoff", detail: "Align on scope and success measures.", target_date: "2026-07-08", status: "done", pulse: { status: "pending" } },
+      { title: "Current state assessment", detail: "Assess current tooling and process gaps.", target_date: "2026-07-29", status: "planned" },
+      { title: "Recommendations", detail: null, target_date: "2026-08-19", status: "planned" },
+    ],
+    actions: [
+      { title: "Share access to current tooling", owner_side: "client", due_date: "2026-07-21", status: "open" },
+    ],
+    updates: [
+      { kind: "milestone", summary: "Milestone completed: Kickoff" },
+      { kind: "document", summary: "New document shared: Engagement Charter.pdf" },
+    ],
+  },
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    client_name: "Proseware Legal",
+    docs: [
+      {
+        name: "Matter Intake Notes.pdf",
+        visibility: "private",
+        body: ["Internal intake notes across active matters."],
+      },
+      {
+        name: "Conflict Check Log.pdf",
+        visibility: "private",
+        body: ["Internal conflict-check register. Not for client distribution."],
+      },
+      {
+        name: "Process Review Findings.pdf",
+        visibility: "shared",
+        approval: "pending",
+        body: ["Findings from the process review, awaiting sign-off."],
+      },
+      {
+        name: "Case Management Options.pdf",
+        visibility: "shared",
+        body: ["Comparison of case management system options."],
+      },
+      {
+        name: "Interim Status Summary.pdf",
+        visibility: "shared",
+        body: ["Interim summary for the practice group leads."],
+      },
+    ],
+    milestones: [
+      { title: "Process review", detail: "Review current case management process end to end.", target_date: "2026-06-05", status: "done", pulse: { status: "submitted", score: 3, comment: "Useful, but slower than expected.", by: "Alex Whitfield" } },
+      { title: "Findings sign-off", detail: "Client sign-off on process review findings.", target_date: "2026-07-15", status: "in_progress" },
+      { title: "System selection", detail: "Shortlist and select a case management system.", target_date: "2026-08-10", status: "planned" },
+      { title: "Rollout plan", detail: null, target_date: "2026-09-05", status: "planned" },
+    ],
+    actions: [
+      { title: "Sign off process review findings", owner_side: "client", due_date: "2026-07-19", status: "open" },
+      { title: "Shortlist case management vendors", owner_side: "team", due_date: "2026-08-01", status: "open" },
+      { title: "Circulate conflict check log", owner_side: "team", due_date: "2026-06-10", status: "done" },
+    ],
+    updates: [
+      { kind: "milestone", summary: "Milestone completed: Process review" },
+      { kind: "document", summary: "New document shared: Process Review Findings.pdf" },
+      { kind: "document", summary: "New document shared: Case Management Options.pdf" },
+    ],
+  },
 ];
 
 // --- Seed routine ----------------------------------------------------------
@@ -228,11 +347,13 @@ async function seed() {
         detail: `Uploaded "${d.name}" to the ${d.visibility} space`,
       });
 
-      if (d.approval === "pending") {
+      if (d.approval === "pending" || d.approval === "approved") {
         await insert("approvals", {
           document_id: doc.id,
           engagement_id: eng.id,
-          status: "pending",
+          status: d.approval,
+          approved_by: d.approval === "approved" ? d.approvedBy ?? "Client" : null,
+          approved_at: d.approval === "approved" ? new Date().toISOString() : null,
         });
         await insert("audit_log", {
           engagement_id: eng.id,
@@ -241,6 +362,15 @@ async function seed() {
           actor_role: "em",
           detail: `Requested client sign-off on "${d.name}"`,
         });
+        if (d.approval === "approved") {
+          await insert("audit_log", {
+            engagement_id: eng.id,
+            document_id: doc.id,
+            event: "approved",
+            actor_role: "client_contact",
+            detail: `${d.approvedBy ?? "Client"} approved "${d.name}"`,
+          });
+        }
       }
 
       console.log(`    - ${d.visibility.padEnd(7)} ${d.name}`);
