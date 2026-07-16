@@ -406,6 +406,44 @@ export async function setEngagementBudgetAction(
   revalidatePath(`/engagement/${engagementId}`);
 }
 
+/**
+ * EM-only: set a client logo + accent color for the engagement page.
+ * Decorative only — never applied to a button, chip, or decision control, so
+ * it can't compete with coral's reserved meaning (Approve / blocked).
+ */
+export async function setEngagementBrandingAction(
+  formData: FormData,
+): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") {
+    throw new Error("Only the EM view can set engagement branding.");
+  }
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  const accentColor = String(formData.get("accentColor") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (logoUrl) {
+    try {
+      new URL(logoUrl);
+    } catch {
+      throw new Error("Logo must be a valid URL.");
+    }
+  }
+  if (accentColor && !/^#[0-9a-fA-F]{6}$/.test(accentColor)) {
+    throw new Error("Accent color must be a hex color like #3366CC.");
+  }
+
+  const rows = await queryAsRole<{ id: string }>(
+    "em",
+    "update engagements set logo_url = $1, accent_color = $2 where id = $3 returning id",
+    [logoUrl || null, accentColor || null, engagementId],
+  );
+  if (!rows[0]) throw new Error("Engagement not found.");
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
 // ---------------------------------------------------------------------------
 // Engagement lifecycle (EM only)
 // ---------------------------------------------------------------------------

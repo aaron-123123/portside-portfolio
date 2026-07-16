@@ -24,7 +24,10 @@ import { UpdatesFeed } from "@/app/components/UpdatesFeed";
 import { DocumentRow } from "@/app/components/DocumentRow";
 import { UploadPanel } from "@/app/components/UploadPanel";
 import { SubmitButton } from "@/app/components/SubmitButton";
-import { setEngagementStatusAction } from "@/app/actions";
+import {
+  setEngagementBrandingAction,
+  setEngagementStatusAction,
+} from "@/app/actions";
 import { isEmailPushConfigured } from "@/lib/notify";
 import { TimeBudget } from "@/app/components/TimeBudget";
 
@@ -84,8 +87,25 @@ export default async function EngagementPage({
         ← All engagements
       </Link>
       <p className="eyebrow">Engagement</p>
-      <div className="field-row" style={{ alignItems: "baseline", justifyContent: "space-between" }}>
-        <h1 className="page-title">
+      <div
+        className="field-row"
+        style={{
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          borderLeft: engagement.accent_color
+            ? `4px solid ${engagement.accent_color}`
+            : undefined,
+          paddingLeft: engagement.accent_color ? 14 : undefined,
+        }}
+      >
+        <h1
+          className="page-title"
+          style={{ display: "flex", alignItems: "baseline", gap: 12 }}
+        >
+          {engagement.logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element -- external, EM-supplied URL; not a local asset
+            <img src={engagement.logo_url} alt="" className="engagement-logo" />
+          )}
           {engagement.client_name}
           {engagement.status === "archived" && (
             <span className="chip chip--archived" style={{ marginLeft: 12 }}>
@@ -107,6 +127,39 @@ export default async function EngagementPage({
           </form>
         )}
       </div>
+
+      {isEm && (
+        <form
+          action={setEngagementBrandingAction}
+          className="inline-form"
+          style={{ marginBottom: 24 }}
+        >
+          <input type="hidden" name="engagementId" value={id} />
+          <label htmlFor="brand-logo" className="sr-only">
+            Logo URL
+          </label>
+          <input
+            id="brand-logo"
+            type="text"
+            name="logoUrl"
+            placeholder="Logo URL (optional)"
+            defaultValue={engagement.logo_url ?? ""}
+            style={{ minWidth: 220 }}
+          />
+          <label htmlFor="brand-color" className="sr-only">
+            Accent color
+          </label>
+          <input
+            id="brand-color"
+            type="color"
+            name="accentColor"
+            defaultValue={engagement.accent_color ?? "#834a33"}
+          />
+          <SubmitButton className="btn" pendingText="Saving…">
+            Set branding
+          </SubmitButton>
+        </form>
+      )}
 
       <StatusCard
         status={status}

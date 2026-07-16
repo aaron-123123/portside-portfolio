@@ -23,6 +23,8 @@ export interface Engagement {
   status: EngagementLifecycle;
   created_at: string;
   budget_hours: number | null;
+  logo_url: string | null;
+  accent_color: string | null;
 }
 
 export interface TimeEntry {

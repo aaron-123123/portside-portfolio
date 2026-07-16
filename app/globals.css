@@ -105,6 +105,13 @@ code {
   color: var(--ink);
 }
 
+.engagement-logo {
+  height: 28px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+}
+
 .brand-mark {
   width: 11px;
   height: 11px;

@@ -24,6 +24,17 @@ create table if not exists public.engagements (
 alter table public.engagements
   add column if not exists status text not null default 'active';
 
+-- Per-engagement branding: a client logo + accent color, applied only as
+-- decoration near the client name (never on a button, chip, or decision
+-- control) — coral stays reserved to Approve/blocked, this doesn't compete
+-- with that.
+alter table public.engagements add column if not exists logo_url text;
+alter table public.engagements add column if not exists accent_color text;
+
+alter table public.engagements drop constraint if exists engagements_accent_color_check;
+alter table public.engagements add constraint engagements_accent_color_check
+  check (accent_color is null or accent_color ~ '^#[0-9a-fA-F]{6}$');
+
 alter table public.engagements drop constraint if exists engagements_status_check;
 alter table public.engagements add constraint engagements_status_check
   check (status in ('active', 'archived'));
