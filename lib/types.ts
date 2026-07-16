@@ -112,7 +112,8 @@ export type AuditEvent =
   | "action_item"
   | "pulse"
   | "engagement_status"
-  | "comment";
+  | "comment"
+  | "engagement_created";
 
 export interface AuditRow {
   id: string;

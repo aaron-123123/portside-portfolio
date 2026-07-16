@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getRole, writeRole } from "@/lib/session";
 import { queryAsRole } from "@/lib/db";
 import { serviceClient, STORAGE_BUCKET } from "@/lib/supabase";
@@ -280,6 +281,40 @@ export async function addDocumentCommentAction(
   });
 
   revalidatePath(`/engagement/${engagementId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Engagement creation (EM only)
+// ---------------------------------------------------------------------------
+
+/** EM-only: onboard a new client engagement. */
+export async function createEngagementAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") {
+    throw new Error("Only the EM view can create an engagement.");
+  }
+
+  const clientName = String(formData.get("clientName") ?? "").trim();
+  if (!clientName) throw new Error("Client name is required.");
+
+  const rows = await queryAsRole<{ id: string }>(
+    "em",
+    "insert into engagements (client_name) values ($1) returning id",
+    [clientName],
+  );
+  const engagement = rows[0];
+  if (!engagement) throw new Error("Could not create engagement.");
+
+  await writeAudit({
+    engagementId: engagement.id,
+    documentId: null,
+    event: "engagement_created",
+    actorRole: role,
+    detail: `Created engagement "${clientName}"`,
+  });
+
+  revalidatePath("/");
+  redirect(`/engagement/${engagement.id}`);
 }
 
 // ---------------------------------------------------------------------------

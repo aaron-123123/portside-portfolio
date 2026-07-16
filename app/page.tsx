@@ -2,9 +2,11 @@ import Link from "next/link";
 import { isConfigured } from "@/lib/supabase";
 import { getCsatOverview, getEngagements, getEngagementStatuses } from "@/lib/data";
 import { getRole } from "@/lib/session";
+import { createEngagementAction } from "@/app/actions";
 import { ConfigNotice } from "@/app/components/ConfigNotice";
 import { EngagementSearch } from "@/app/components/EngagementSearch";
 import { CsatOverview } from "@/app/components/CsatOverview";
+import { SubmitButton } from "@/app/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,21 @@ export default async function Home({
       )}
 
       {csat && <CsatOverview data={csat} />}
+
+      {isEm && (
+        <form action={createEngagementAction} className="panel" style={{ marginTop: 32 }}>
+          <p className="panel-title">New engagement</p>
+          <div className="field-row">
+            <div className="field" style={{ flex: "1 1 280px" }}>
+              <label htmlFor="new-client-name">Client name</label>
+              <input id="new-client-name" type="text" name="clientName" required />
+            </div>
+            <SubmitButton className="btn" pendingText="Creating…">
+              Create
+            </SubmitButton>
+          </div>
+        </form>
+      )}
     </main>
   );
 }

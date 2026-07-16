@@ -123,7 +123,7 @@ create table if not exists public.audit_log (
   id            uuid primary key default gen_random_uuid(),
   engagement_id uuid not null references public.engagements(id) on delete cascade,
   document_id   uuid references public.documents(id) on delete set null,
-  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment')),
+  event         text not null check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created')),
   actor_role    text not null check (actor_role in ('em', 'client_contact', 'client_exec')),
   detail        text not null,
   created_at    timestamptz not null default now()
@@ -140,7 +140,7 @@ create index if not exists audit_engagement_idx      on public.audit_log(engagem
 -- action items, pulse, and the split client roles existed (idempotent).
 alter table public.audit_log drop constraint if exists audit_log_event_check;
 alter table public.audit_log add constraint audit_log_event_check
-  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment'));
+  check (event in ('upload', 'visibility_change', 'approval_requested', 'approved', 'milestone', 'action_item', 'pulse', 'engagement_status', 'comment', 'engagement_created'));
 
 alter table public.audit_log drop constraint if exists audit_log_actor_role_check;
 alter table public.audit_log add constraint audit_log_actor_role_check
@@ -173,7 +173,7 @@ grant execute on function public.app_role(), public.is_client() to authenticated
 -- ---------------------------------------------------------------------------
 
 grant usage on schema public to authenticated;
-grant select, update         on public.engagements  to authenticated;
+grant select, insert, update on public.engagements  to authenticated;
 grant select, insert, update on public.documents    to authenticated;
 grant select, insert, update on public.approvals    to authenticated;
 grant select, insert, update on public.milestones   to authenticated;
@@ -207,6 +207,11 @@ drop policy if exists engagements_update on public.engagements;
 create policy engagements_update on public.engagements
   for update to authenticated
   using (public.app_role() = 'em')
+  with check (public.app_role() = 'em');
+
+drop policy if exists engagements_insert on public.engagements;
+create policy engagements_insert on public.engagements
+  for insert to authenticated
   with check (public.app_role() = 'em');
 
 -- Documents: EM sees all; the project lead sees shared docs; the sponsor (exec)
