@@ -1,4 +1,5 @@
 import { addActionItemAction, completeActionItemAction } from "@/app/actions";
+import { SubmitButton } from "@/app/components/SubmitButton";
 import { formatTimestamp } from "@/lib/format";
 import type { ActionItem, Role } from "@/lib/types";
 
@@ -71,9 +72,9 @@ export function ActionRequired({
                       name="engagementId"
                       value={engagementId}
                     />
-                    <button type="submit" className="btn">
+                    <SubmitButton className="btn" pendingText="Marking…">
                       Mark done
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>
@@ -117,9 +118,9 @@ export function ActionRequired({
               <input id="ai-due" type="date" name="due_date" />
             </div>
             <input type="hidden" name="engagementId" value={engagementId} />
-            <button type="submit" className="btn">
+            <SubmitButton className="btn" pendingText="Adding…">
               Add
-            </button>
+            </SubmitButton>
           </div>
         </form>
       )}

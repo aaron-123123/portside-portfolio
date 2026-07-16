@@ -35,6 +35,7 @@ export function RoleToggle({ role }: { role: Role }) {
               title={tier.title}
               className={`toggle-btn${role === tier.value ? " active" : ""}`}
               disabled={role === tier.value}
+              aria-current={role === tier.value ? "true" : undefined}
             >
               {tier.label}
             </button>

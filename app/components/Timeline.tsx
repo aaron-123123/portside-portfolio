@@ -1,4 +1,5 @@
 import { addMilestoneAction, setMilestoneStatusAction } from "@/app/actions";
+import { SubmitButton } from "@/app/components/SubmitButton";
 import { formatTimestamp } from "@/lib/format";
 import type { Milestone, MilestoneStatus, Role } from "@/lib/types";
 
@@ -81,9 +82,9 @@ export function Timeline({
                         <option value="done">Done</option>
                         <option value="blocked">Blocked</option>
                       </select>
-                      <button type="submit" className="btn">
+                      <SubmitButton className="btn" pendingText="Updating…">
                         Update
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </div>
@@ -106,9 +107,9 @@ export function Timeline({
               <input id="ms-date" type="date" name="target_date" />
             </div>
             <input type="hidden" name="engagementId" value={engagementId} />
-            <button type="submit" className="btn">
+            <SubmitButton className="btn" pendingText="Adding…">
               Add
-            </button>
+            </SubmitButton>
           </div>
           <div className="field" style={{ marginTop: 12 }}>
             <label htmlFor="ms-detail">Detail (optional)</label>

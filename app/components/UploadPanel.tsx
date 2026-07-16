@@ -1,4 +1,5 @@
 import { uploadDocumentAction } from "@/app/actions";
+import { SubmitButton } from "@/app/components/SubmitButton";
 
 /** EM-only upload form. Chooses which space the file lands in. */
 export function UploadPanel({ engagementId }: { engagementId: string }) {
@@ -18,9 +19,9 @@ export function UploadPanel({ engagementId }: { engagementId: string }) {
           </select>
         </div>
         <input type="hidden" name="engagementId" value={engagementId} />
-        <button type="submit" className="btn">
+        <SubmitButton className="btn" pendingText="Uploading…">
           Upload
-        </button>
+        </SubmitButton>
       </div>
     </form>
   );

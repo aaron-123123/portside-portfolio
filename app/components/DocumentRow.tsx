@@ -3,6 +3,7 @@ import {
   requestApprovalAction,
   setVisibilityAction,
 } from "@/app/actions";
+import { SubmitButton } from "@/app/components/SubmitButton";
 import { formatTimestamp } from "@/lib/format";
 import type { DocumentRecord, Role } from "@/lib/types";
 
@@ -56,9 +57,9 @@ export function DocumentRow({
               name="visibility"
               value={doc.visibility === "private" ? "shared" : "private"}
             />
-            <button type="submit" className="btn">
+            <SubmitButton className="btn" pendingText="Moving…">
               Move to {doc.visibility === "private" ? "shared" : "private"}
-            </button>
+            </SubmitButton>
           </form>
         )}
 
@@ -67,9 +68,9 @@ export function DocumentRow({
           <form action={requestApprovalAction}>
             <input type="hidden" name="documentId" value={doc.id} />
             <input type="hidden" name="engagementId" value={engagementId} />
-            <button type="submit" className="btn">
+            <SubmitButton className="btn" pendingText="Requesting…">
               Request approval
-            </button>
+            </SubmitButton>
           </form>
         )}
 
@@ -84,9 +85,9 @@ export function DocumentRow({
               placeholder="Your name"
               aria-label="Your name"
             />
-            <button type="submit" className="btn btn--primary">
+            <SubmitButton className="btn btn--primary" pendingText="Approving…">
               Approve
-            </button>
+            </SubmitButton>
           </form>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { submitPulseAction } from "@/app/actions";
+import { SubmitButton } from "@/app/components/SubmitButton";
 import { formatTimestamp } from "@/lib/format";
 import type { CheckIn, Role } from "@/lib/types";
 
@@ -116,9 +117,9 @@ export function Pulse({
               </div>
               <input type="hidden" name="checkInId" value={ci.id} />
               <input type="hidden" name="engagementId" value={engagementId} />
-              <button type="submit" className="btn">
+              <SubmitButton className="btn" pendingText="Submitting…">
                 Submit pulse
-              </button>
+              </SubmitButton>
             </div>
           </form>
         ))
