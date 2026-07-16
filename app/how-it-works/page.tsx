@@ -116,6 +116,59 @@ export default function HowItWorks() {
 
       <section className="section">
         <div className="section-head">
+          <h2 className="section-title">Beyond access control</h2>
+          <span className="section-note">Delivery-depth features</span>
+        </div>
+        <p>
+          The access-control story above is the point of the demo, but
+          Portside also models the parts of running a real engagement that
+          Rocketlane and similar delivery tools treat as core: creating a new
+          engagement from the product itself (not a seed script), named
+          assignees on team-owned work with a cross-engagement workload
+          rollup, document versioning (a same-named re-upload adds a version,
+          not an unrelated file), lightweight time &amp; budget tracking
+          (internal only, deliberately not a billing system), and an optional
+          client logo / accent color — applied only as decoration, never on a
+          button or status chip, so it can&apos;t compete with coral&apos;s
+          reserved meaning.
+        </p>
+        <dl className="kv-list">
+          <div className="kv-row">
+            <dt>Engagement creation</dt>
+            <dd>
+              <code>createEngagementAction</code> in <code>app/actions.ts</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Assignees &amp; workload rollup</dt>
+            <dd>
+              <code>app/components/WorkloadOverview.tsx</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Document versioning</dt>
+            <dd>
+              <code>documents.family_id</code> / <code>.version</code> in{" "}
+              <code>supabase/schema.sql</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Time &amp; budget (internal only)</dt>
+            <dd>
+              <code>app/components/TimeBudget.tsx</code>
+            </dd>
+          </div>
+          <div className="kv-row">
+            <dt>Per-engagement branding</dt>
+            <dd>
+              <code>engagements.logo_url</code> / <code>.accent_color</code>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="section">
+        <div className="section-head">
           <h2 className="section-title">What&apos;s a demo convenience</h2>
           <span className="section-note">Honest scope</span>
         </div>
