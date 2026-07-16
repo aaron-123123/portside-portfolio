@@ -248,17 +248,28 @@ create policy document_comments_select on public.document_comments
     )
   );
 
+-- The engagement_id column is denormalized (document_id alone would derive
+-- it), so require it to actually match the document's row — otherwise a
+-- tampered hidden form field could land a comment's audit trail under the
+-- wrong engagement even though the comment itself stays correctly scoped.
 drop policy if exists document_comments_insert on public.document_comments;
 create policy document_comments_insert on public.document_comments
   for insert to authenticated
   with check (
-    public.app_role() = 'em'
-    or (
-      public.app_role() = 'client_contact'
-      and exists (
-        select 1 from public.documents d
-         where d.id = document_comments.document_id
-           and d.visibility = 'shared'
+    exists (
+      select 1 from public.documents d
+       where d.id = document_comments.document_id
+         and d.engagement_id = document_comments.engagement_id
+    )
+    and (
+      public.app_role() = 'em'
+      or (
+        public.app_role() = 'client_contact'
+        and exists (
+          select 1 from public.documents d
+           where d.id = document_comments.document_id
+             and d.visibility = 'shared'
+        )
       )
     )
   );
