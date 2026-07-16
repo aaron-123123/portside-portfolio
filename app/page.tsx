@@ -2,16 +2,10 @@ import Link from "next/link";
 import { isConfigured } from "@/lib/supabase";
 import { getEngagements, getEngagementStatuses } from "@/lib/data";
 import { getRole } from "@/lib/session";
-import type { Health } from "@/lib/status";
 import { ConfigNotice } from "@/app/components/ConfigNotice";
+import { EngagementSearch } from "@/app/components/EngagementSearch";
 
 export const dynamic = "force-dynamic";
-
-const HEALTH_CHIP: Record<Health, string> = {
-  green: "chip--ontrack",
-  amber: "chip--risk",
-  red: "chip--blocked",
-};
 
 const LEDE: Record<string, string> = {
   em: "Every engagement has a private space for the delivery team and a shared space visible to the client. Select a client to open their workspace.",
@@ -21,12 +15,21 @@ const LEDE: Record<string, string> = {
     "Delivery status across your engagements. Select one for the summary.",
 };
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ archived?: string }>;
+}) {
   if (!isConfigured()) return <ConfigNotice />;
 
   const role = await getRole();
+  const isEm = role === "em";
+  const { archived } = await searchParams;
+  // Only EM may look at the archived roster — everyone else always sees active.
+  const showArchived = isEm && archived === "1";
+
   const [engagements, statuses] = await Promise.all([
-    getEngagements(),
+    getEngagements(showArchived ? "archived" : "active"),
     getEngagementStatuses(),
   ]);
 
@@ -36,35 +39,23 @@ export default async function Home() {
       <h1 className="page-title">Client delivery spaces</h1>
       <p className="lede">{LEDE[role]}</p>
 
+      {isEm && (
+        <p className="lifecycle-tabs">
+          <Link href="/" className={showArchived ? undefined : "active"}>
+            [ Active ]
+          </Link>{" "}
+          <Link href="/?archived=1" className={showArchived ? "active" : undefined}>
+            [ Archived ]
+          </Link>
+        </p>
+      )}
+
       {engagements.length === 0 ? (
-        <p className="empty">No engagements yet.</p>
+        <p className="empty">
+          {showArchived ? "No archived engagements." : "No engagements yet."}
+        </p>
       ) : (
-        <div className="roster">
-          {engagements.map((e) => {
-            const s = statuses[e.id];
-            return (
-              <Link
-                key={e.id}
-                href={`/engagement/${e.id}`}
-                className="roster-row"
-              >
-                <span className="roster-name">{e.client_name}</span>
-                <span className="roster-status">
-                  {s && s.total > 0 ? (
-                    <>
-                      <span className={`chip ${HEALTH_CHIP[s.health]}`}>
-                        {s.healthLabel}
-                      </span>
-                      <span className="roster-meta">{s.percent}% complete</span>
-                    </>
-                  ) : (
-                    <span className="roster-meta">Not started</span>
-                  )}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        <EngagementSearch engagements={engagements} statuses={statuses} />
       )}
     </main>
   );
