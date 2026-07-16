@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { isConfigured } from "@/lib/supabase";
-import { getCsatOverview, getEngagements, getEngagementStatuses } from "@/lib/data";
+import {
+  getCsatOverview,
+  getEngagements,
+  getEngagementStatuses,
+  getWorkloadOverview,
+} from "@/lib/data";
 import { getRole } from "@/lib/session";
 import { createEngagementAction } from "@/app/actions";
 import { ConfigNotice } from "@/app/components/ConfigNotice";
 import { EngagementSearch } from "@/app/components/EngagementSearch";
 import { CsatOverview } from "@/app/components/CsatOverview";
+import { WorkloadOverview } from "@/app/components/WorkloadOverview";
 import { SubmitButton } from "@/app/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +37,11 @@ export default async function Home({
   // Only EM may look at the archived roster — everyone else always sees active.
   const showArchived = isEm && archived === "1";
 
-  const [engagements, statuses, csat] = await Promise.all([
+  const [engagements, statuses, csat, workload] = await Promise.all([
     getEngagements(showArchived ? "archived" : "active"),
     getEngagementStatuses(),
     isEm ? getCsatOverview() : Promise.resolve(null),
+    isEm ? getWorkloadOverview() : Promise.resolve(null),
   ]);
 
   return (
@@ -63,6 +70,7 @@ export default async function Home({
       )}
 
       {csat && <CsatOverview data={csat} />}
+      {workload && <WorkloadOverview data={workload} />}
 
       {isEm && (
         <form action={createEngagementAction} className="panel" style={{ marginTop: 32 }}>

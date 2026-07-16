@@ -75,8 +75,17 @@ create table if not exists public.action_items (
   status        text not null default 'open' check (status in ('open', 'done')),
   due_date      date,
   completed_at  timestamptz,
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  -- Free-text team member name (mirrors approved_by/submitted_by elsewhere —
+  -- no user/account table exists in this demo). Only meaningful for
+  -- owner_side = 'team'; drives the cross-engagement workload rollup.
+  assignee      text
 );
+
+alter table public.action_items add column if not exists assignee text;
+
+-- Milestones get the same free-text assignee, for the same reason.
+alter table public.milestones add column if not exists assignee text;
 
 -- Pulse / CSAT: a quick satisfaction check the client answers when a milestone
 -- is completed. One per milestone.

@@ -368,15 +368,16 @@ export async function addMilestoneAction(formData: FormData): Promise<void> {
   const title = String(formData.get("title") ?? "").trim();
   const detail = String(formData.get("detail") ?? "").trim();
   const targetDate = String(formData.get("target_date") ?? "").trim();
+  const assignee = String(formData.get("assignee") ?? "").trim();
   if (!engagementId) throw new Error("Missing engagement.");
   if (!title) throw new Error("Milestone title is required.");
 
   await queryAsRole(
     "em",
-    `insert into milestones (engagement_id, title, detail, target_date, sort_order)
-     values ($1, $2, $3, $4,
+    `insert into milestones (engagement_id, title, detail, target_date, assignee, sort_order)
+     values ($1, $2, $3, $4, $5,
        coalesce((select max(sort_order) + 1 from milestones where engagement_id = $1), 0))`,
-    [engagementId, title, detail || null, targetDate || null],
+    [engagementId, title, detail || null, targetDate || null, assignee || null],
   );
 
   await writeAudit({
@@ -460,6 +461,7 @@ export async function addActionItemAction(formData: FormData): Promise<void> {
   const title = String(formData.get("title") ?? "").trim();
   const ownerSide = String(formData.get("owner_side") ?? "");
   const dueDate = String(formData.get("due_date") ?? "").trim();
+  const assignee = String(formData.get("assignee") ?? "").trim();
   if (!engagementId) throw new Error("Missing engagement.");
   if (!title) throw new Error("Action item title is required.");
   if (ownerSide !== "team" && ownerSide !== "client") {
@@ -468,9 +470,9 @@ export async function addActionItemAction(formData: FormData): Promise<void> {
 
   await queryAsRole(
     "em",
-    `insert into action_items (engagement_id, title, owner_side, due_date)
-     values ($1, $2, $3, $4)`,
-    [engagementId, title, ownerSide, dueDate || null],
+    `insert into action_items (engagement_id, title, owner_side, due_date, assignee)
+     values ($1, $2, $3, $4, $5)`,
+    [engagementId, title, ownerSide, dueDate || null, ownerSide === "team" ? assignee || null : null],
   );
 
   await writeAudit({

@@ -62,6 +62,7 @@ export function Timeline({
                   <div className="tl-meta">
                     {target ? `Target ${target}` : "No target date"}
                     {completed && m.status === "done" && ` · Completed ${completed}`}
+                    {m.assignee && ` · ${m.assignee}`}
                   </div>
                   {m.detail && <p className="tl-detail">{m.detail}</p>}
 
@@ -105,6 +106,10 @@ export function Timeline({
             <div className="field">
               <label htmlFor="ms-date">Target date</label>
               <input id="ms-date" type="date" name="target_date" />
+            </div>
+            <div className="field">
+              <label htmlFor="ms-assignee">Assignee (optional)</label>
+              <input id="ms-assignee" type="text" name="assignee" placeholder="Team member" />
             </div>
             <input type="hidden" name="engagementId" value={engagementId} />
             <SubmitButton className="btn" pendingText="Adding…">

@@ -56,6 +56,7 @@ export function ActionRequired({
                 <span className="item-name">{item.title}</span>
                 <div className="doc-meta">
                   {due ? `Due ${due}` : "No due date"}
+                  {item.assignee && ` · ${item.assignee}`}
                 </div>
               </div>
               <span
@@ -116,6 +117,10 @@ export function ActionRequired({
             <div className="field">
               <label htmlFor="ai-due">Due date</label>
               <input id="ai-due" type="date" name="due_date" />
+            </div>
+            <div className="field">
+              <label htmlFor="ai-assignee">Assignee (if team)</label>
+              <input id="ai-assignee" type="text" name="assignee" placeholder="Team member" />
             </div>
             <input type="hidden" name="engagementId" value={engagementId} />
             <SubmitButton className="btn" pendingText="Adding…">

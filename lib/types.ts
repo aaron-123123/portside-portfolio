@@ -65,6 +65,7 @@ export interface Milestone {
   sort_order: number;
   completed_at: string | null;
   created_at: string;
+  assignee: string | null;
 }
 
 export interface ActionItem {
@@ -76,6 +77,7 @@ export interface ActionItem {
   due_date: string | null;
   completed_at: string | null;
   created_at: string;
+  assignee: string | null;
 }
 
 export type CheckInStatus = "pending" | "submitted";

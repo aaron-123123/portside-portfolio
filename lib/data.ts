@@ -217,6 +217,57 @@ export async function getCsatOverview(): Promise<CsatOverview> {
   return { overallAverage, totalResponses: allScores.length, byEngagement };
 }
 
+export interface AssigneeWorkload {
+  assignee: string;
+  openCount: number;
+  overdueCount: number;
+  items: { clientName: string; title: string; dueDate: string | null }[];
+}
+
+/**
+ * Cross-engagement workload: open, team-owned action items grouped by
+ * assignee, sorted busiest-first — mirrors getCsatOverview's shape so an EM
+ * can spot who's overloaded the same way they spot a CSAT dip.
+ */
+export async function getWorkloadOverview(): Promise<AssigneeWorkload[]> {
+  const role = await getRole();
+  const rows = await queryAsRole<{
+    assignee: string;
+    client_name: string;
+    title: string;
+    due_date: string | null;
+  }>(
+    role,
+    `select a.assignee, e.client_name, a.title, a.due_date
+       from action_items a
+       join engagements e on e.id = a.engagement_id
+      where a.status = 'open' and a.owner_side = 'team' and a.assignee is not null`,
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  const byAssignee = new Map<string, AssigneeWorkload>();
+  for (const row of rows) {
+    const entry = byAssignee.get(row.assignee) ?? {
+      assignee: row.assignee,
+      openCount: 0,
+      overdueCount: 0,
+      items: [],
+    };
+    entry.openCount += 1;
+    if (row.due_date && row.due_date < today) entry.overdueCount += 1;
+    entry.items.push({
+      clientName: row.client_name,
+      title: row.title,
+      dueDate: row.due_date,
+    });
+    byAssignee.set(row.assignee, entry);
+  }
+
+  return Array.from(byAssignee.values()).sort(
+    (a, b) => b.openCount - a.openCount,
+  );
+}
+
 /** Count documents per engagement for the roster, respecting RLS. */
 export async function getDocumentCounts(): Promise<Record<string, number>> {
   const role = await getRole();
