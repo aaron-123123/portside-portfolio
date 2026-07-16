@@ -9,6 +9,7 @@ import {
   getEngagement,
   getMilestones,
   getPendingApprovalCount,
+  getTimeEntries,
   getUpdates,
 } from "@/lib/data";
 import { getRole } from "@/lib/session";
@@ -25,6 +26,7 @@ import { UploadPanel } from "@/app/components/UploadPanel";
 import { SubmitButton } from "@/app/components/SubmitButton";
 import { setEngagementStatusAction } from "@/app/actions";
 import { isEmailPushConfigured } from "@/lib/notify";
+import { TimeBudget } from "@/app/components/TimeBudget";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,7 @@ export default async function EngagementPage({
   // The sponsor tier gets no documents (enforced by RLS); don't even query.
   const documents = isEm || isLead ? await getDocuments(id) : [];
   const audit = isEm ? await getAuditLog(id) : [];
+  const timeEntries = isEm ? await getTimeEntries(id) : [];
 
   const privateDocs = documents.filter((d) => d.visibility === "private");
   const sharedDocs = documents.filter((d) => d.visibility === "shared");
@@ -192,6 +195,14 @@ export default async function EngagementPage({
               </p>
             )}
           </section>
+
+          {isEm && (
+            <TimeBudget
+              engagementId={id}
+              budgetHours={engagement.budget_hours}
+              entries={timeEntries}
+            />
+          )}
 
           {/* Activity log — internal audit trail. EM view only. */}
           {isEm && (

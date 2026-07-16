@@ -324,12 +324,17 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   }
 
   const clientName = String(formData.get("clientName") ?? "").trim();
+  const budgetRaw = String(formData.get("budgetHours") ?? "").trim();
   if (!clientName) throw new Error("Client name is required.");
+  const budgetHours = budgetRaw ? Number(budgetRaw) : null;
+  if (budgetHours !== null && (!Number.isFinite(budgetHours) || budgetHours <= 0)) {
+    throw new Error("Budgeted hours must be a positive number.");
+  }
 
   const rows = await queryAsRole<{ id: string }>(
     "em",
-    "insert into engagements (client_name) values ($1) returning id",
-    [clientName],
+    "insert into engagements (client_name, budget_hours) values ($1, $2) returning id",
+    [clientName, budgetHours],
   );
   const engagement = rows[0];
   if (!engagement) throw new Error("Could not create engagement.");
@@ -344,6 +349,61 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
 
   revalidatePath("/");
   redirect(`/engagement/${engagement.id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Time & budget tracking (EM only, internal — deliberately not a billing
+// system: no rates, no invoices, just hours logged against a budget).
+// ---------------------------------------------------------------------------
+
+/** EM-only: log hours against an engagement. */
+export async function logTimeAction(formData: FormData): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can log time.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const loggedBy = String(formData.get("loggedBy") ?? "").trim();
+  const hours = Number(formData.get("hours"));
+  const note = String(formData.get("note") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  if (!loggedBy) throw new Error("Your name is required.");
+  if (!Number.isFinite(hours) || hours <= 0) {
+    throw new Error("Hours must be a positive number.");
+  }
+
+  await queryAsRole(
+    "em",
+    `insert into time_entries (engagement_id, logged_by, hours, note)
+     values ($1, $2, $3, $4)`,
+    [engagementId, loggedBy, hours, note || null],
+  );
+
+  revalidatePath(`/engagement/${engagementId}`);
+}
+
+/** EM-only: set or change an engagement's budgeted hours. */
+export async function setEngagementBudgetAction(
+  formData: FormData,
+): Promise<void> {
+  const role = await getRole();
+  if (role !== "em") throw new Error("Only the EM view can set the budget.");
+
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const budgetRaw = String(formData.get("budgetHours") ?? "").trim();
+  if (!engagementId) throw new Error("Missing engagement.");
+  const budgetHours = budgetRaw ? Number(budgetRaw) : null;
+  if (budgetHours !== null && (!Number.isFinite(budgetHours) || budgetHours <= 0)) {
+    throw new Error("Budgeted hours must be a positive number.");
+  }
+
+  const rows = await queryAsRole<{ id: string }>(
+    "em",
+    "update engagements set budget_hours = $1 where id = $2 returning id",
+    [budgetHours, engagementId],
+  );
+  if (!rows[0]) throw new Error("Engagement not found.");
+
+  revalidatePath(`/engagement/${engagementId}`);
 }
 
 // ---------------------------------------------------------------------------

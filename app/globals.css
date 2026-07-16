@@ -53,6 +53,20 @@ code {
   border-radius: 2px;
 }
 
+/* Visually hidden but present for screen readers — for labels a compact
+   inline form doesn't have room to show, like the budget-hours field. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- Layout shell ---------- */
 
 .header {

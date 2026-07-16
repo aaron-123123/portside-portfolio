@@ -80,6 +80,10 @@ export default async function Home({
               <label htmlFor="new-client-name">Client name</label>
               <input id="new-client-name" type="text" name="clientName" required />
             </div>
+            <div className="field">
+              <label htmlFor="new-budget">Budgeted hours (optional)</label>
+              <input id="new-budget" type="number" name="budgetHours" min="1" step="1" />
+            </div>
             <SubmitButton className="btn" pendingText="Creating…">
               Create
             </SubmitButton>

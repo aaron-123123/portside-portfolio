@@ -22,6 +22,17 @@ export interface Engagement {
   client_name: string;
   status: EngagementLifecycle;
   created_at: string;
+  budget_hours: number | null;
+}
+
+export interface TimeEntry {
+  id: string;
+  engagement_id: string;
+  logged_by: string;
+  hours: number;
+  note: string | null;
+  logged_at: string;
+  created_at: string;
 }
 
 export interface Approval {

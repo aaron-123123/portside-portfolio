@@ -116,6 +116,26 @@ create table if not exists public.check_ins (
   created_at    timestamptz not null default now()
 );
 
+-- Budgeted hours per engagement — an internal (EM-only) planning figure, not
+-- shown to either client tier.
+alter table public.engagements add column if not exists budget_hours numeric;
+
+-- Light time tracking, deliberately not a billing system: no rates, no
+-- invoices, just hours logged against an engagement vs. its budget.
+-- Internal only — same visibility boundary as the audit log.
+create table if not exists public.time_entries (
+  id            uuid primary key default gen_random_uuid(),
+  engagement_id uuid not null references public.engagements(id) on delete cascade,
+  logged_by     text not null,
+  hours         numeric not null check (hours > 0),
+  note          text,
+  logged_at     date not null default current_date,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists time_entries_engagement_idx
+  on public.time_entries(engagement_id);
+
 -- Client-facing status feed. Rows are appended automatically by the server when
 -- client-relevant things happen (a milestone completes, a document is shared).
 create table if not exists public.updates (
@@ -391,6 +411,22 @@ drop policy if exists audit_select on public.audit_log;
 create policy audit_select on public.audit_log
   for select to authenticated
   using (public.app_role() = 'em');
+
+-- Time entries: internal only, same boundary as the audit log. Neither
+-- client tier can read or write hours logged against the budget.
+alter table public.time_entries enable row level security;
+
+drop policy if exists time_entries_select on public.time_entries;
+create policy time_entries_select on public.time_entries
+  for select to authenticated
+  using (public.app_role() = 'em');
+
+drop policy if exists time_entries_insert on public.time_entries;
+create policy time_entries_insert on public.time_entries
+  for insert to authenticated
+  with check (public.app_role() = 'em');
+
+grant select, insert on public.time_entries to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Storage: one PRIVATE bucket. Files are reached only through short-lived

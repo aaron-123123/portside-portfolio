@@ -12,6 +12,13 @@ types.setTypeParser(1184, (value) =>
   value === null ? value : new Date(value).toISOString(),
 );
 
+// Return `numeric` columns (OID 1700, e.g. budget_hours, time_entries.hours)
+// as JS numbers. pg returns numeric as a string by default (it can exceed
+// float precision) — fine for arbitrary-precision math, but this app only
+// ever does budget/hours arithmetic and display, where a plain number is
+// what every call site expects.
+types.setTypeParser(1700, (value) => (value === null ? value : parseFloat(value)));
+
 /**
  * Direct Postgres access — the database half of Portside's two-layer enforcement.
  *

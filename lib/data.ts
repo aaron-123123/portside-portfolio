@@ -9,6 +9,7 @@ import type {
   DocumentVersion,
   Engagement,
   Milestone,
+  TimeEntry,
   Update,
 } from "./types";
 
@@ -146,6 +147,16 @@ export async function getUpdates(
     role,
     "select * from updates where engagement_id = $1 order by created_at desc limit $2",
     [engagementId, limit],
+  );
+}
+
+/** Time entries for an engagement, newest first. EM-only (RLS-enforced). */
+export async function getTimeEntries(engagementId: string): Promise<TimeEntry[]> {
+  const role = await getRole();
+  return queryAsRole<TimeEntry>(
+    role,
+    "select * from time_entries where engagement_id = $1 order by logged_at desc, created_at desc",
+    [engagementId],
   );
 }
 
