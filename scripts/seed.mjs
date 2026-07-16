@@ -57,6 +57,11 @@ const engagements = [
   {
     id: "11111111-1111-4111-8111-111111111111",
     client_name: "Contoso Super",
+    budget_hours: 120,
+    time_entries: [
+      { logged_by: "Dana Brooks", hours: 18, note: "Discovery & risk assessment", logged_at: "2026-05-15" },
+      { logged_by: "Marcus Webb", hours: 22, note: "Governance framework drafting", logged_at: "2026-06-18" },
+    ],
     docs: [
       {
         name: "Risk Assessment - Draft v0.3.pdf",
@@ -89,7 +94,7 @@ const engagements = [
     ],
     actions: [
       { title: "Confirm board meeting date", owner_side: "client", due_date: "2026-07-20", status: "open" },
-      { title: "Finalise Governance Framework v2", owner_side: "team", due_date: "2026-07-22", status: "open" },
+      { title: "Finalise Governance Framework v2", owner_side: "team", due_date: "2026-07-22", status: "open", assignee: "Dana Brooks" },
       { title: "Share updated systems inventory", owner_side: "client", due_date: "2026-06-18", status: "done" },
     ],
     updates: [
@@ -121,7 +126,7 @@ const engagements = [
     ],
     actions: [
       { title: "Review Compliance Policy draft", owner_side: "client", due_date: "2026-07-18", status: "open" },
-      { title: "Incorporate clinical safety feedback", owner_side: "team", due_date: null, status: "open" },
+      { title: "Incorporate clinical safety feedback", owner_side: "team", due_date: null, status: "open", assignee: "Dana Brooks" },
     ],
     updates: [
       { kind: "milestone", summary: "Milestone completed: Discovery workshop" },
@@ -161,6 +166,12 @@ const engagements = [
   {
     id: "44444444-4444-4444-8444-444444444444",
     client_name: "Woodgrove Bank",
+    budget_hours: 80,
+    accent_color: "#1B3A5C",
+    time_entries: [
+      { logged_by: "Dana Brooks", hours: 30, note: "Migration planning & security review", logged_at: "2026-06-01" },
+      { logged_by: "Marcus Webb", hours: 25, note: "Integration build", logged_at: "2026-06-25" },
+    ],
     docs: [
       {
         name: "Data Migration Plan.pdf",
@@ -194,6 +205,7 @@ const engagements = [
     actions: [
       { title: "Confirm go-live change window", owner_side: "client", due_date: "2026-07-24", status: "open" },
       { title: "Finalise rollback runbook", owner_side: "team", due_date: "2026-06-20", status: "done" },
+      { title: "Prepare go-live runbook walkthrough", owner_side: "team", due_date: "2026-07-28", status: "open", assignee: "Marcus Webb" },
     ],
     updates: [
       { kind: "milestone", summary: "Milestone completed: Security review" },
@@ -268,7 +280,7 @@ const engagements = [
     ],
     actions: [
       { title: "Sign off process review findings", owner_side: "client", due_date: "2026-07-19", status: "open" },
-      { title: "Shortlist case management vendors", owner_side: "team", due_date: "2026-08-01", status: "open" },
+      { title: "Shortlist case management vendors", owner_side: "team", due_date: "2026-08-01", status: "open", assignee: "Marcus Webb" },
       { title: "Circulate conflict check log", owner_side: "team", due_date: "2026-06-10", status: "done" },
     ],
     updates: [
@@ -317,7 +329,12 @@ async function seed() {
   for (const eng of engagements) {
     // Replace any previous data for this engagement (cascade clears children).
     await admin.from("engagements").delete().eq("id", eng.id);
-    await insert("engagements", { id: eng.id, client_name: eng.client_name });
+    await insert("engagements", {
+      id: eng.id,
+      client_name: eng.client_name,
+      budget_hours: eng.budget_hours ?? null,
+      accent_color: eng.accent_color ?? null,
+    });
     console.log(`  Engagement: ${eng.client_name}`);
 
     for (let i = 0; i < eng.docs.length; i++) {
@@ -416,10 +433,21 @@ async function seed() {
         owner_side: a.owner_side,
         status: a.status,
         due_date: a.due_date ?? null,
+        assignee: a.assignee ?? null,
         completed_at:
           a.status === "done"
             ? `${a.due_date ?? "2026-07-01"}T10:00:00Z`
             : null,
+      });
+    }
+
+    for (const t of eng.time_entries ?? []) {
+      await insert("time_entries", {
+        engagement_id: eng.id,
+        logged_by: t.logged_by,
+        hours: t.hours,
+        note: t.note ?? null,
+        logged_at: t.logged_at,
       });
     }
 
@@ -432,7 +460,7 @@ async function seed() {
     }
 
     console.log(
-      `    ~ ${milestones.length} milestones, ${(eng.actions ?? []).length} action items, ${(eng.updates ?? []).length} updates`,
+      `    ~ ${milestones.length} milestones, ${(eng.actions ?? []).length} action items, ${(eng.updates ?? []).length} updates, ${(eng.time_entries ?? []).length} time entries`,
     );
   }
 
